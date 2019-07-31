@@ -33,6 +33,7 @@ import numpy as np
 import pickle
 from cnn_pixelmap_model_V2 import get_model
 import sys
+from pyimagesearch.clr_callback import CyclicLR
 random.seed(42)
 
 #path to ouput directory, it implies a set of charcteistics for training etc
@@ -46,14 +47,14 @@ random.seed(42)
 #reportDir='merge'
 reportDir='unetresnet'
 #reportDir='unetsimple'
-#reportDir='unetresnetrial'
+reportDir='unetresnetrial'
 #reportDir='r0nctrial'
 #reportDir='unetresnet'
 
 #dirToConsider='r0ncD0_1024_modif' # for loading model
 #dirToConsider='aws1024' # for loading model
 #dirToConsider='wocosine' # for loading model
-dirToConsider='i' # for loading model
+dirToConsider='j' # for loading model
 
 
 
@@ -71,7 +72,7 @@ withRedoRoi=False # evaluates as for scoring on validation data
 withMRoi=False
 withmaskrcnn=False # use maskrcnn results for score True in merge
 withrien=False # filter result
-usePreviousWeight=True
+usePreviousWeight=False
 zerocenter=True
 
 #histAdapt='NAN' # use history adapt for pre -treatment
@@ -95,18 +96,22 @@ nsubSamples=100#in %
 num_class=1
 num_bit=1   
 kfold=10
-splitKfold=False
+splitKfold=True
 
 subreport=dirToConsider
 minRoiForScore=1000
-thForScore=0.8
+#thForScore=0.8
+threshold_best=0.5
 prob_thresholds=[0.2,0.3,0.7]
 #prob_thresholds=[0.5]
 
 
 
 factorLR=0.5 # decay LR for each turn
-minLR=5e-6 # min LR
+minLR=1e-7 # min LR
+MAX_LR = 1e-2
+STEP_SIZE = 8
+CLR_METHOD = "triangular"
 #######################################################################
 if withTrain:
     withScore=False # score for submission
@@ -165,7 +170,7 @@ if reportDir=='unetphoe':
 if reportDir=='unetresnet':
     modelName='unetresnet'
     mergeDir=False
-    learning_rate=1e-3
+    learning_rate=minLR
     d0=0.5
     batchSize[modelName]=2 # 3 for create network 512 1 dor 1024
 
@@ -180,11 +185,11 @@ if reportDir=='unetsimple':
 if reportDir=='unetresnetrial':
     modelName='unetresnet'
     random.seed(42)
-    kfold=2
+    kfold=3
 
     d0=0.5
     mergeDir=False
-    learning_rate=1e-3
+    learning_rate=minLR
     img_rows=256
     img_cols=256
     batchSize[modelName]=10  # 10 for create network 512
@@ -195,6 +200,7 @@ if reportDir=='unetresnetrial':
     minRoiToConsider[img_rows]=80# start 1300.for 512
     prob_thresholds=[0.3,0.5,0.6]
     thForScore=0.5
+
 
     
 if reportDir=='unetref':
@@ -314,9 +320,13 @@ f.write('maxrotate: '+str(maxrotate)+'\n')
 f.write('learning_rate: '+str(learning_rate)+'\n')
 f.write('factorLR: '+str(factorLR)+'\n')
 f.write('minLR: '+str(minLR)+'\n')
+f.write('MAX_LR: '+str(MAX_LR)+'\n')
+f.write('STEP_SIZE: '+str(splitKfold)+'\n')
+f.write('CLR_METHOD: '+str(CLR_METHOD)+'\n')
 
 f.write('number of kfold: '+str(kfold)+'\n')
 f.write('split kfold: '+str(splitKfold)+'\n')
+
 
 
 
@@ -822,8 +832,26 @@ def step_decay(epoch):
 	return lrate
 
 
-def trainAct(tf,vf,kf,df_full,pneumothorax,model):
+
+
+
+
+
+def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
     global learning_rate
+    startlocal = time.time()
+
+    BATCH_SIZE = batchSize[modelName]
+
+#    NUM_EPOCHS = 96
+    
+    print("[INFO] using '{}' method".format(CLR_METHOD))
+    clr = CyclicLR(
+    	mode=CLR_METHOD,
+    	base_lr=minLR,
+    	max_lr=MAX_LR,
+    	step_size= STEP_SIZE * (len_train// BATCH_SIZE))
+
     early_stopping=keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, verbose=1,min_delta=0.005,mode='min')  
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5,
                                               patience=5, min_lr=1e-7,
@@ -835,7 +863,7 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model):
     else:
             lrdir=reportDir
             
-    checkpoint_path = os.path.join(lrdir,str(today)+'-{epoch:02d}-{val_acc:.4f}.hdf5')
+    checkpoint_path = os.path.join(lrdir,str(today)+'-{epoch:02d}-{val_dice_coef:.4f}.hdf5')
 #    checkpoint_path2 = os.path.join(lrdir,str(today)+'_dice-coef_{epoch:02d}-{val_acc:.2f}.hdf5')
     fileResult=os.path.join(lrdir,str(today)+'_e.csv')
 
@@ -850,60 +878,58 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model):
 
     batch_size=batchSize[modelName]
 
-    lastepoch=0
+#    lastepoch=0
 
-    for turni in range(turnNumber):
-        if turni>0:
-            learning_rate=max(learning_rate*factorLR,minLR)
-        print ('turn number: ',turni, ' on: ', turnNumber-1,'nb epoch: ',nb_epoch,' learning rate: ',learning_rate)
-        f=open(todaytrshFile,'a')
-        f.write('-----------------\n')
-        f.write('turn number: '+str(turni)+' on: '+str(turnNumber-1)+' nb epoch:' +
-                str(nb_epoch)+' learning rate: '+str(learning_rate)+'\n')
-        f.close()
+
+    print ('split number: ',kf+1, ' on: ', kfold,'nb epoch: ',nb_epoch,' learning rate: ',learning_rate)
+    f=open(todaytrshFile,'a')
+    f.write('-----------------\n')
+    f.write('split number: '+str(kf+1)+' on: '+str(kfold)+' nb epoch:' +
+            str(nb_epoch)+' learning rate: '+str(learning_rate)+'\n')
+    f.close()
 #        train_filenames,valid_filenames,maskRoi=getfilenames()
-        nb_epoch_i_p=lastepoch+nb_epoch
-        if turni ==0:
-            augAsk=augAskAsk
-        else:
-            augAsk=augAskAsk
-        # create train and validation generators
-        train_gen = generator(tf,df_full,pneumothorax, 
-                              batch_size=batch_size, image_size=(img_rows,img_cols), 
-                              shuffle=True,  augment=augAsk, predict=False)
+    nb_epoch_i_p=lastepoch+nb_epoch
+
+    # create train and validation generators
+    train_gen = generator(tf,df_full,pneumothorax, 
+                          batch_size=batch_size, image_size=(img_rows,img_cols), 
+                          shuffle=True,  augment=augAskAsk, predict=False)
 #        class_weights = class_weight.compute_class_weight('balanced',
 #                                                 np.unique(train_gen),
 #                                                 train_gen)
-        valid_gen = generator(vf,df_full, pneumothorax, 
-                              batch_size=batch_size, image_size=(img_rows,img_cols), 
-                              shuffle=False, augment=False, predict=False)
+    valid_gen = generator(vf,df_full, pneumothorax, 
+                          batch_size=batch_size, image_size=(img_rows,img_cols), 
+                          shuffle=False, augment=False, predict=False)
 
-        history = model.fit_generator(train_gen, validation_data=valid_gen, 
+    history = model.fit_generator(train_gen, validation_data=valid_gen, 
 
-                                   epochs=nb_epoch_i_p,
-                                   initial_epoch=lastepoch,
+                               epochs=nb_epoch_i_p,
+                               initial_epoch=lastepoch,
   
 #                                  callbacks=[model_checkpoint,learning_rates,csv_logger,early_stopping],
 #                                  callbacks=[model_checkpoint,csv_logger,early_stopping,
 #                                             reduce_lr,model_checkpoint2],
-                                  callbacks=[model_checkpoint,csv_logger,early_stopping,
-                                             reduce_lr],
+#                              callbacks=[model_checkpoint,csv_logger,early_stopping,
+#                                         reduce_lr],
+                              callbacks=[model_checkpoint,csv_logger,early_stopping,
+                                         clr],
 
-                                   steps_per_epoch=len(tf)//batchSize[modelName],
-    #                               callbacks=[model_checkpoint,clr,csv_logger],    
-                                  workers=4, use_multiprocessing=True)
-        lastepoch=int((turni+1)*nb_epoch)
-        f=open(todaytrshFile,'a')
-        spenttime=spentTimeFunc(time.time() - start)
-        print ('turn training time spent from begin :' ,spenttime)  
-        f.write('turn time spent from beg: '+str(spenttime)+'\n')
-        f.close()
-        f=open(todaytrshFile,'a')
-    spenttime=spentTimeFunc(time.time() - start)
-    print ('total training time spent :' ,spenttime  )
-    f.write('total time spent: '+str(spenttime)+'\n')
-    print (history.history.keys())
+                               steps_per_epoch=len(tf)//batchSize[modelName],
+#                               callbacks=[model_checkpoint,clr,csv_logger],    
+                              workers=4, use_multiprocessing=True)
+    
+    nb_epochs=len(history.history['loss'])
+    lastepoch=int((kf+1)*nb_epochs)
+
+    f=open(todaytrshFile,'a')
+    print('actual number of epochs',nb_epochs)
+    f.write('actual number of epochs: '+str(nb_epochs)+'\n')
+
+    spenttime=spentTimeFunc(time.time() - startlocal)
+    print ('turn training time spent:' ,spenttime)  
+    f.write('turn training time spent: '+str(spenttime)+'\n')
     f.close()
+    
     if withPlot:
         todayPlotIou='r'+'_'+str(tn.month)+'_'+str(tn.day)+'_'+str(tn.year)+'_'+str(tn.hour)+'_'+str(tn.minute)+'plot.png'
         plotFileIou=os.path.join(reportDir,todayPlotIou)    
@@ -940,33 +966,52 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model):
 ##    print(mask_e_reshape.shape,mask_e_reshape.min(),mask_e_reshape.max())
 #    model.fit(images_reshape,mask_e_reshape,validation_split = 0.1,epochs = 1,batch_size = 16)
     gc.collect()
+    return lastepoch
     
 
 def withTrainf():
     global learning_rate
-
+    lastepoch=0
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
+    len_train=len(train_filenames[0])
+    
+    
+    
     if kfold>0:
         for i in range(kfold):
             print('start with folder:',i)
-            if splitKfold or i ==0:
+            if splitKfold:
                 if mergeDir:
                         model,model2,model3=loadModelGlobal(i)
                 else:
                         model=loadModelGlobal(i)
-            trainAct(train_filenames[i],valid_filenames[i],i,df_full,pneumothorax,model)
-            del model
+            else:
+                if i==0:
+                    if mergeDir:
+                            model,model2,model3=loadModelGlobal(i)
+                    else:
+                            model=loadModelGlobal(i)
+                            
+            lastepoch=trainAct(train_filenames[i],valid_filenames[i],i,df_full,
+                               pneumothorax,model,lastepoch,len_train)
+            
     else:
             if mergeDir:
                     model,model2,model3=loadModelGlobal(0)
             else:
                     model=loadModelGlobal(0)
-            trainAct(train_filenames,valid_filenames,0,df_full,pneumothorax,model)
-            del model
+            lastepoch=trainAct(train_filenames,valid_filenames,0,df_full,
+                               pneumothorax,model,lastepoch,len_train)
+    del model
     
     
 #    model.fit(images_reshape,mask_e_reshape,validation_split = 0.1,epochs = 1,batch_size = 16)
     del train_filenames,valid_filenames,df_full
+    f=open(todaytrshFile,'a')
+    spenttime=spentTimeFunc(time.time() - start)
+    print ('total training time spent :' ,spenttime  )
+    f.write('total time spent: '+str(spenttime)+'\n')
+    f.close()
     gc.collect()
 
 def withReportf():
@@ -1493,7 +1538,7 @@ def withScorefo():
     
     
 def withScoref():
-    threshold_best=0.5
+    
     test_fns=sorted(glob(TEST_DCM_DIR+'*/*/*/*.dcm'))
     lvfn=len(test_fns)
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
