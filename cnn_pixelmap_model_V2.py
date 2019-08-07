@@ -22,6 +22,9 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.layers import Input, Conv2D, Conv2DTranspose, MaxPooling2D, concatenate, Dropout,UpSampling2D,Add,Concatenate
 import keras
 from keras import backend as K
+from Uresnet34 import UResNet34
+from keras.losses import binary_crossentropy
+
 
 print (' keras.backend.image_data_format :',keras.backend.image_data_format())
 ##############"
@@ -46,7 +49,6 @@ def dice_loss(y_true, y_pred):
     intersection = y_true_f * y_pred_f
     score = (2. * K.sum(intersection) + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
     return 1. - score
-
 
 
 def bce_dice_loss(y_true, y_pred):
@@ -131,6 +133,17 @@ def dice_coef(y_true, y_pred, smooth=1.):
     intersection = K.sum(y_true_f * y_pred_f)
     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
+#def dice_coefr34(y_true, y_pred):
+#    y_true_f = K.flatten(y_true)
+#    y_pred = K.cast(y_pred, 'float32')
+#    y_pred_f = K.cast(K.greater(K.flatten(y_pred), 0.5), 'float32')
+#    intersection = y_true_f * y_pred_f
+#    score = 2. * K.sum(intersection) / (K.sum(y_true_f) + K.sum(y_pred_f))
+#    return score
+#
+
+def bce_dice_lossr34(y_true, y_pred):
+    return binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
 
 def dice_coefN(y_true, y_pred,smooth=1.):
     y_true_f = keras.layers.Flatten()(y_true)
@@ -411,7 +424,7 @@ def downsample_resblock(num_classl,INP_SHAPEl,DIM_ORDERINGl,CONCAT_AXISl,d0):
     x =  keras.layers.Conv2D(256, 1, activation=None)(x)
     x =  keras.layers.LeakyReLU(0)(x)
     x =  keras.layers.BatchNormalization(momentum=0.9)(x)   
-    x =  keras.layers.Conv2DTranspose(128, (8,8), (4,4), padding="same", activation=None)(x)
+    x =  keras.layers.Conv2DTranspose(128, (8,8), strides=(4,4), padding="same", activation=None)(x)
     x =  keras.layers.LeakyReLU(0)(x)
     x =  keras.layers.BatchNormalization(momentum=0.9)(x)
     x =  keras.layers.Conv2D(num_classl, 1, activation='sigmoid')(x)
@@ -597,25 +610,28 @@ def convolution_block(x, filters, size, strides=(1,1), padding='same', activatio
         x = BatchActivate(x)
     return x
 
-def residual_block(blockInput, num_filters=16, batch_activate = False):
+def residual_block(blockInput, num_filters=16, batch_activate = False,k=(3,3)):
     x = BatchActivate(blockInput)
-    x = convolution_block(x, num_filters, (3,3) )
-    x = convolution_block(x, num_filters, (3,3), activation=False)
+    x = convolution_block(x, num_filters, k )
+    x = convolution_block(x, num_filters, k, activation=False)
     x = keras.layers.Add()([x, blockInput])
     if batch_activate:
         x = BatchActivate(x)
     return x
 
 def build_model_unetresnet(input_layer, start_neurons, num_class_, DropoutRatio = 0.5,):
+    ks0=(3,3)
+#    ks1=(5,5)
+#    ks2=(7,7)
     # 101 -> 50
-    conv1 = keras.layers.Conv2D(start_neurons * 1, (3, 3), activation=None, padding="same")(input_layer)
-    conv1 = residual_block(conv1,start_neurons * 1)
-    conv1 = residual_block(conv1,start_neurons * 1, True)
+    conv1 = keras.layers.Conv2D(start_neurons * 1, ks0, activation=None, padding="same")(input_layer)
+    conv1 = residual_block(conv1,start_neurons * 1,k=ks0)
+    conv1 = residual_block(conv1,start_neurons * 1, True,k=ks0)
     pool1 = keras.layers.MaxPooling2D((2, 2))(conv1)
     pool1 = keras.layers.Dropout(DropoutRatio/2)(pool1)
 
     # 50 -> 25
-    conv2 = keras.layers.Conv2D(start_neurons * 2, (3, 3), activation=None, padding="same")(pool1)
+    conv2 = keras.layers.Conv2D(start_neurons * 2, ks0, activation=None, padding="same")(pool1)
     conv2 = residual_block(conv2,start_neurons * 2)
     conv2 = residual_block(conv2,start_neurons * 2, True)
     pool2 = keras.layers.MaxPooling2D((2, 2))(conv2)
@@ -688,7 +704,9 @@ def unetresnet(num_class_,INP_SHAPE_,dim_org_,CONCAT_AXIS_,d0):
     print ('this is model unetresnet with d0: ',d0)
     input_layer = keras.Input(INP_SHAPE_)
 #    output_layer = build_model(input_layer, 32, num_class_,0.3)
-    output_layer = build_model_unetresnet(input_layer, 32, num_class_,d0)
+#    output_layer = build_model_unetresnet(input_layer,start neuron 32 32, num_class_,d0)
+    output_layer = build_model_unetresnet(input_layer, 16, num_class_,d0)
+
     
     model = keras.Model(input_layer, output_layer)
 #    model = keras.Model(inputs=[input_layer], outputs=[output_layer])
@@ -813,7 +831,10 @@ def  unetsimple0(num_class_,INP_SHAPE_,dim_org_,CONCAT_AXIS_,d0):
 
 ##########################################################################
 ############################################################
-
+def get_lr_metric(optimizer):
+    def lr(y_true, y_pred):
+        return optimizer.lr
+    return lr
 
 def get_model(modelName_,num_class_,num_bit_,image_rows_,image_cols_,mat_t_k_,
                                       weights_,weightedl_,namelastc_,learning_rate_,comPile_,d0=0.5):
@@ -841,6 +862,10 @@ def get_model(modelName_,num_class_,num_bit_,image_rows_,image_cols_,mat_t_k_,
         model = unetphoe(num_class_,INP_SHAPE,DIM_ORDERING,CONCAT_AXIS,d0)
     elif modelName_ == 'ResUNet':   
         model = ResUNet(num_class_,INP_SHAPE,DIM_ORDERING,CONCAT_AXIS,d0)
+    elif modelName_ == 'UResNet34':   
+        INP_SHAPE = (num_bit_, image_rows_, image_cols_) 
+        model = UResNet34(num_class_,INP_SHAPE,DIM_ORDERING,CONCAT_AXIS,d0)
+
 
     else:
             print ('not defined model')
@@ -864,15 +889,26 @@ def get_model(modelName_,num_class_,num_bit_,image_rows_,image_cols_,mat_t_k_,
             print ('NO weighted loss')
             if modelName_=='unetresnet': 
                 opt = Adam(lr=learning_rate_)
+                lr_metric = get_lr_metric(opt)
 #                model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['categorical_accuracy',dice_coef]) # to be used with cosine annealing
 #                model.compile(optimizer=opt, loss=bce_dice_loss, metrics=['accuracy', my_iou_metric]) # to be used with cosine annealing
 #                model.compile(loss= [dice_loss] , optimizer=opt, metrics=["accuracy",dice_coef])
 #                model.compile(loss="binary_crossentropy", optimizer=opt, metrics=["accuracy",dice_coef])
-                model.compile(loss=dice_coef_loss, optimizer=opt, metrics=["accuracy",dice_coef])
+                model.compile(loss=dice_coef_loss, optimizer=opt, metrics=["accuracy",dice_coef, lr_metric])
+            elif modelName_=='UResNet34': 
+                opt = Adam(lr=learning_rate_)
+                lr_metric = get_lr_metric(opt)
+#                model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['categorical_accuracy',dice_coef]) # to be used with cosine annealing
+#                model.compile(optimizer=opt, loss=bce_dice_loss, metrics=['accuracy', my_iou_metric]) # to be used with cosine annealing
+#                model.compile(loss= [dice_loss] , optimizer=opt, metrics=["accuracy",dice_coef])
+#                model.compile(loss="binary_crossentropy", optimizer=opt, metrics=["accuracy",dice_coef])
+                model.compile(loss=bce_dice_lossr34, optimizer=opt, metrics=["accuracy",dice_coef, lr_metric])
 
             elif modelName_=='downsample_resblock': 
                 opt =  keras.optimizers.Adam(lr=learning_rate_)
-                model.compile(optimizer=opt, loss=bce_dice_loss, metrics=['accuracy', my_iou_metric]) # to be used with cosine annealing
+                lr_metric = get_lr_metric(opt)
+#                model.compile(optimizer=opt, loss=bce_dice_loss, metrics=['accuracy', my_iou_metric]) # to be used with cosine annealing
+                model.compile(loss=dice_coef_loss, optimizer=opt, metrics=["accuracy",dice_coef, lr_metric])
 
             elif modelName_=='unet': 
                 opt =  keras.optimizers.Adam(lr=learning_rate_)
@@ -916,6 +952,7 @@ if __name__ == "__main__":
 #   modelNamei='downsample_resblock'
 #   modelNamei='unetsimple'
 #   modelNamei='ResUNet'
+   modelNamei='UResNet34'
    weights=[0.1, 0.9]
 #   weights = np.array([0.1,2])
    num_classi=1
