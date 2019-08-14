@@ -29,7 +29,13 @@ import matplotlib.pyplot as plt
 #reportDir='unetphoe/new'
 #reportDir='unetresnet/wocosine'
 #reportDir='unetresnetrial/a'
-reportDir='unetresnet/h' #
+reportDir='unetresnet/j' #
+#reportDir='UResNet34/a' #
+#reportDir='UResNet34trial/a' #
+
+
+#reportDir='r0ncD0/a'
+
 
 
 
@@ -135,7 +141,7 @@ def getData(nS):
     print ( '-------dice coeff-------',reportDir,nS)
     #for i in range(int(row['epoch'])):
     
-    print ('-----')
+#    print ('-----')
 #    print ('maximum maximorum for dice_coef',reportDir,nS)
     print ('max val dice_coef starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[0])
     if sorted(val_l[limb:],reverse=Reverse)[0]>max_dice_coef:
@@ -145,13 +151,13 @@ def getData(nS):
         
     print ('epoch for max:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
     
-    print ('-----')
+#    print ('-----')
     print ('--val loss---',reportDir,nS)
 
     val_l=list(val_lossd)
     Reverse=False
 
-    print ('-----')
+#    print ('-----')
 #    print ('minimum minimorum for val loss')
     print ('min val loss starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[0])
     print ('epoch for min:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
@@ -160,6 +166,7 @@ def getData(nS):
         min_val_loss_i=nS
         epoch_for_min_val_loss=val_l.index(sorted(val_l[limb:],reverse=Reverse)[0])
 
+    print ('-----')
 
     #            pass
     return(categorical_accuracy , val_accuracy, train_loss , lrd,  

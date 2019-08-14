@@ -16,7 +16,7 @@ from keras.preprocessing.image import load_img
 from keras import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from keras.models import load_model
-from keras.optimizers import Adam
+from keras.optimizers import Adam,SGD
 from keras.utils.vis_utils import plot_model
 from keras.preprocessing.image import ImageDataGenerator
 from keras.layers import Input, Conv2D, Conv2DTranspose, MaxPooling2D, concatenate, Dropout,UpSampling2D,Add,Concatenate
@@ -127,23 +127,26 @@ def generalized_dice_coeff_loss(y_true, y_pred):
 #    return (2.0 * intersection + K.epsilon()) / (K.sum(y_true_f) + K.sum(y_pred_f) + K.epsilon())
 
 #
-def dice_coef(y_true, y_pred, smooth=1.):
+def dice_coef(y_true, y_pred, smooth=1.0):
     y_true_f = K.flatten(y_true)
+    y_pred = K.cast(y_pred, 'float32')
+
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
-#def dice_coefr34(y_true, y_pred):
-#    y_true_f = K.flatten(y_true)
-#    y_pred = K.cast(y_pred, 'float32')
-#    y_pred_f = K.cast(K.greater(K.flatten(y_pred), 0.5), 'float32')
-#    intersection = y_true_f * y_pred_f
-#    score = 2. * K.sum(intersection) / (K.sum(y_true_f) + K.sum(y_pred_f))
-#    return score
+def dice_coefX(y_true, y_pred):
+    y_true_f = K.flatten(y_true)
+    y_pred = K.cast(y_pred, 'float32')
+    y_pred_f = K.cast(K.greater(K.flatten(y_pred), 0.5), 'float32')
+    intersection = y_true_f * y_pred_f
+    score = 2. * K.sum(intersection) / (K.sum(y_true_f) + K.sum(y_pred_f))
+    return score
 #
 
 def bce_dice_lossr34(y_true, y_pred):
     return binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
+
 
 def dice_coefN(y_true, y_pred,smooth=1.):
     y_true_f = keras.layers.Flatten()(y_true)
@@ -610,7 +613,7 @@ def convolution_block(x, filters, size, strides=(1,1), padding='same', activatio
         x = BatchActivate(x)
     return x
 
-def residual_block(blockInput, num_filters=16, batch_activate = False,k=(3,3)):
+def residual_block(blockInput, num_filters=16, batch_activate = True,k=(3,3)):
     x = BatchActivate(blockInput)
     x = convolution_block(x, num_filters, k )
     x = convolution_block(x, num_filters, k, activation=False)
@@ -889,20 +892,27 @@ def get_model(modelName_,num_class_,num_bit_,image_rows_,image_cols_,mat_t_k_,
             print ('NO weighted loss')
             if modelName_=='unetresnet': 
                 opt = Adam(lr=learning_rate_)
+#                opt = SGD(lr=learning_rate_, momentum=0.9)
+
                 lr_metric = get_lr_metric(opt)
 #                model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['categorical_accuracy',dice_coef]) # to be used with cosine annealing
 #                model.compile(optimizer=opt, loss=bce_dice_loss, metrics=['accuracy', my_iou_metric]) # to be used with cosine annealing
 #                model.compile(loss= [dice_loss] , optimizer=opt, metrics=["accuracy",dice_coef])
 #                model.compile(loss="binary_crossentropy", optimizer=opt, metrics=["accuracy",dice_coef])
                 model.compile(loss=dice_coef_loss, optimizer=opt, metrics=["accuracy",dice_coef, lr_metric])
+                
             elif modelName_=='UResNet34': 
-                opt = Adam(lr=learning_rate_)
+#                opt = Adam(lr=learning_rate_)
+                opt = SGD(lr=learning_rate_, momentum=0.9)
+
                 lr_metric = get_lr_metric(opt)
 #                model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['categorical_accuracy',dice_coef]) # to be used with cosine annealing
 #                model.compile(optimizer=opt, loss=bce_dice_loss, metrics=['accuracy', my_iou_metric]) # to be used with cosine annealing
 #                model.compile(loss= [dice_loss] , optimizer=opt, metrics=["accuracy",dice_coef])
 #                model.compile(loss="binary_crossentropy", optimizer=opt, metrics=["accuracy",dice_coef])
-                model.compile(loss=bce_dice_lossr34, optimizer=opt, metrics=["accuracy",dice_coef, lr_metric])
+#                model.compile(loss=bce_dice_lossr34, optimizer=opt, metrics=["accuracy",dice_coef, lr_metric])
+                model.compile(loss=dice_coef_loss, optimizer=opt, metrics=["accuracy",dice_coef, lr_metric])
+
 
             elif modelName_=='downsample_resblock': 
                 opt =  keras.optimizers.Adam(lr=learning_rate_)

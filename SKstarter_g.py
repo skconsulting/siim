@@ -49,32 +49,29 @@ random.seed(42)
 #path to ouput directory, it implies a set of charcteistics for training etc
 #reportDir='r0nc'
 #reportDir='r0ncD0'
-reportDir='r0ncD0trial'
+#reportDir='r0ncD0trial'
 #reportDir='unetphoe'
 #reportDir='unetreftrial'
-reportDir='unetresnetrial'
+#reportDir='unetresnetrial'
 #reportDir='unetref517'
 #reportDir='merge'
-#reportDir='unetresnet'
+reportDir='unetresnet'
 #reportDir='unetsimple'
 #reportDir='r0nctrial'
 #reportDir='unetresnet'
 #reportDir='UResNet34'
-reportDir='UResNet34trial'
+#reportDir='UResNet34trial'
 
 #dirToConsider='r0ncD0_1024_modif' # for loading model
 #dirToConsider='aws1024' # for loading model
 #dirToConsider='wocosine' # for loading model
-#dirToConsider='testLr' # for loading model
+#dirToConsider='testLr1' # for loading model
 #dirToConsider='a16merge' # for loading model
-dirToConsider='a' # for loading model
+dirToConsider='j' # for loading model
 
 
-
-
-
-withScore=False # score for submission
-withTrain=True # actual training
+withScore=True# score for submission
+withTrain=False # actual training
 onePred=False
 lookForLearningRate=False # actual training
 
@@ -91,7 +88,7 @@ withMRoi=False
 withmaskrcnn=False # use maskrcnn results for score True in merge
 withrien=False # filter result
 
-usePreviousWeight=False
+usePreviousWeight=True
 
 zerocenter=True
 
@@ -109,6 +106,7 @@ writeModel=False
 
 img_rows=512 #533
 img_cols=512
+
 nb_epoch=100
 #nb_epoch=20
 
@@ -120,7 +118,8 @@ num_class=1
 num_bit=1   
 # work wit=h Kfolds
 kfold=10
-splitKfold=True
+startKfold=0 # 0 to start
+splitKfold=False
 
 subreport=dirToConsider
 minRoiForScore=0
@@ -132,8 +131,8 @@ prob_thresholds=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 #prob_thresholds=[0.5]
 
 factorLR=0.5 # decay LR for each turn
-minLR=1e-5 # min LR
-MAX_LR = 1e-2
+minLR=1e-4 # min LR
+MAX_LR = 5e-3
 STEP_SIZE = 8
 CLR_METHOD = "triangular2"
 #######################################################################
@@ -208,17 +207,17 @@ if reportDir=='unetresnet':
     mergeDir=False
     learning_rate=minLR
     d0=0.5
-    batchSize[modelName]=7# 3 for create network 512 1 dor 1024
+    batchSize[modelName]=6# 3 for create network 512 1 dor 1024
     if lookForLearningRate:
             kfold=0
-            nb_epoch=10
+            nb_epoch=5
 
 if reportDir=='UResNet34':
     modelName='UResNet34'
     mergeDir=False
     learning_rate=minLR
     d0=0.5
-    nb_epoch=100
+#    nb_epoch=100
     batchSize[modelName]=16# 16 OK
     if lookForLearningRate:
             kfold=0
@@ -235,8 +234,8 @@ if reportDir=='unetsimple':
 if reportDir=='unetresnetrial':
     modelName='unetresnet'
     random.seed(42)
-    kfold=0
-    splitKfold= False
+    kfold=3
+    splitKfold= True
 
     d0=0.5
     mergeDir=False
@@ -244,7 +243,7 @@ if reportDir=='unetresnetrial':
     img_rows=256
     img_cols=256
     batchSize[modelName]=30  # 10 for create network 512
-    nb_epoch=1
+    nb_epoch=20
     turnNumber=1
     PercentVal=10 # and test
     nsubSamples=15#in %
@@ -256,8 +255,8 @@ if reportDir=='unetresnetrial':
 if reportDir=='UResNet34trial':
     modelName='UResNet34'
     random.seed(42)
-    kfold=0
-    splitKfold= False
+    kfold=3
+    splitKfold= True
 
     d0=0.5
     mergeDir=False
@@ -265,7 +264,7 @@ if reportDir=='UResNet34trial':
     img_rows=256
     img_cols=256
     batchSize[modelName]=30  # 10 for create network 512
-    nb_epoch=1
+    nb_epoch=20
     turnNumber=1
     PercentVal=10 # and test
     nsubSamples=15#in %
@@ -401,6 +400,7 @@ f.write('CLR_METHOD: '+str(CLR_METHOD)+'\n')
 
 f.write('number of kfold: '+str(kfold)+'\n')
 f.write('split kfold: '+str(splitKfold)+'\n')
+f.write('split kfold start: '+str(startKfold)+'\n')
 
 f.write('zerocenter: '+str(zerocenter)+'\n')
 #f.write('minRoiToConsider: '+str(minRoiToConsider[img_rows])+'\n')
@@ -1010,7 +1010,9 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
 #    plt.show()
     nb_epochs=len(history.history['loss'])
     if not splitKfold:
-        lastepoch=int((kf+1)*nb_epochs)
+#        lastepoch=int((kf+1)*nb_epochs)
+        lastepoch=lastepoch+nb_epochs
+
     else:
         lastepoch=0
     print (history.history.keys())
@@ -1069,28 +1071,9 @@ def withTrainf():
     print('start training on: ',max(kfold,1), ' folders')
     lastepoch=0
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
+    
     if kfold>0:
-        len_train=len(train_filenames[0])
-    else:
-        len_train=len(train_filenames)
-    if kfold>0:
-#        print(len(train_filenames[0]))
-#        print(len(valid_filenames[0]))
-        if batchSize[modelName] >len(valid_filenames[0]):
-            print('error batch size > len valid')
-            print(len(valid_filenames[0]),batchSize[modelName])
-            sys.exit()
-
-    else:
-#         print(len(train_filenames))
-#         print(len(valid_filenames))
-         if batchSize[modelName] >len(valid_filenames):
-            print('error batch size > len valid')
-            print(len(valid_filenames),batchSize[modelName])
-            sys.exit()
-
-    if kfold>0:
-        for i in range(kfold):
+        for i in range(startKfold,kfold):
             print('start with folder:',i, 'on: ',kfold-1)
             if splitKfold:
                 if mergeDir:
@@ -1103,7 +1086,12 @@ def withTrainf():
                             model,model2,model3=loadModelGlobal(i)
                     else:
                             model=loadModelGlobal(i)
-                            
+            len_train=len(train_filenames[i])  
+            print('len train',len_train)
+            if batchSize[modelName] >len(valid_filenames[0]):
+                print('error batch size > len valid')
+                print(len(valid_filenames[i]),batchSize[modelName])
+                sys.exit()
             lastepoch=trainAct(train_filenames[i],valid_filenames[i],i,df_full,
                                pneumothorax,model,lastepoch,len_train)
             
@@ -1112,6 +1100,11 @@ def withTrainf():
                     model,model2,model3=loadModelGlobal(0)
             else:
                     model=loadModelGlobal(0)
+            len_train=len(train_filenames)
+            if batchSize[modelName] >len(valid_filenames):
+                print('error batch size > len valid')
+                print(len(valid_filenames),batchSize[modelName])
+                sys.exit()
             lastepoch=trainAct(train_filenames,valid_filenames,0,df_full,
                                pneumothorax,model,lastepoch,len_train)
     
@@ -1202,18 +1195,18 @@ def withReportf():
     print ('----------------------------------------')
     random.seed(42)
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
-    print ('calculate report f-score on ',len(valid_filenames),' validation data')
+    print ('calculate report f-score on ',len(train_filenames),' validation data')
     f=open(todaytrshFile,'a')
-    f.write('calculate report f-score on: '+str(len(valid_filenames))+' validation data\n')
+    f.write('calculate report f-score on: '+str(len(train_filenames))+' validation data\n')
     f.write('----------------------------------------------------------------\n')
     f.close()
 
-    lvfn=len(valid_filenames)  
+    lvfn=len(train_filenames)  
     try:
         basize= 20*min(batchSize[modelName],batchSize[modelName2],batchSize[modelName3])
     except:
         basize= 20*batchSize[modelName]
-    valid_gen = generator(valid_filenames,df_full, pneumothorax, 
+    valid_gen = generator(train_filenames,df_full, pneumothorax, 
                               batch_size=basize, image_size=(img_rows,img_cols), 
                               shuffle=False, augment=False, predict=False)
    
@@ -1252,7 +1245,7 @@ def withReportf():
             predTot=predTot[:lvfn]
             maskTot=maskTot[:lvfn]
             break
-
+    print('shape pred: ',predTot.shape)
     preds=[]
     kernel=np.ones((3,3),np.uint8)  
       
@@ -1706,7 +1699,7 @@ def get_test_tensor(file_path, batch_size, img_size, channels):
 #        X[0,] = np.expand_dims(image_resized, axis=2)
 
         return X
-def withScoref0():
+def withScoref1():
     test_fns=sorted(glob(TEST_DCM_DIR+'*/*/*/*.dcm'))
     rles_df = pd.read_csv(RAW_TRAIN_LABELS)
 # parse test DICOM dataset

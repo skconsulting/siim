@@ -22,8 +22,21 @@ import matplotlib.pyplot as plt
 #reportDir='unetphoe/new'
 #reportDir='unetresnet/wocosine'
 #reportDir='unetresnetrial/a'
-reportDir1='unetresnet/h/4' #
-reportDir='unetresnet/i' #with zero
+reportDir1='unetresnet/i' #
+reportDir='unetresnet/j' #with zero
+
+reportDir='r0ncD0/a/2'
+reportDir1='r0ncD0/a/2'
+
+reportDir='unetresnet/a16/0' # master will give max epoch
+reportDir1='unetresnet/i' # 
+#reportDir='UResNet34/a/3' # 
+reportDir1='' #
+
+#reportDir1='UResNet34trial/d/1' 
+#reportDir1='unetresnetrial/b/0' 
+reportDir='unetresnet/j' 
+
 
 
 
@@ -130,6 +143,7 @@ def getData(reportDir):
 #    print('epoch',epoch)
 
     print ( '--------------')
+#    print (x)
 #    print ('Current Last Epoch: ',row['epoch'][0:4])
     print ('Current Last Epoch: ',x[-1],reportDir)
 
@@ -155,14 +169,17 @@ def getData(reportDir):
     Reverse=True
     #print val_l
     print ( '-------dice coeff-------')
+  
     #for i in range(int(row['epoch'])):
     try:
         for i in range(3):
         #    try:
             print ('-----')
             print (i,'maximum maximorum for dice_coef',reportDir)
-            print ('max val dice_coef starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[i])
-            print ('epoch for max:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[i]),
+            maxdicecoef=sorted(val_l[limb:],reverse=Reverse)[i]
+#            print(maxdicecoef)
+            print ('max val dice_coef starting from epoch:',str(limb),maxdicecoef)
+            print ('epoch for max:',val_l.index(maxdicecoef),
                    ' epoch: ',epoch[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
             if i==0:
                 pic0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
@@ -181,70 +198,72 @@ def getData(reportDir):
     #print val_l
     
     #for i in range(int(row['epoch'])):
-    try:
-        for i in range(3):
-        #    try:
-            print ('-----')
-            print (i,'minimum minimorum for val loss',reportDir)
-            print ('min val loss starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[i])
-            print ('epoch for min:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[i]))
-            if i==0:
-                picloss0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
-            else:
-                picloss[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
-            print ('max valiou for min val loss:',val_dice_coefd[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
-    except:
-            print ('too few rows')
+#    try:
+#        for i in range(3):
+#        #    try:
+#            print ('-----')
+#            print (i,'minimum minimorum for val loss',reportDir)
+#            print ('min val loss starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[i])
+#            print ('epoch for min:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[i]))
+#            if i==0:
+#                picloss0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+#            else:
+#                picloss[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+#            print ('max valiou for min val loss:',val_dice_coefd[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
+#    except:
+#            print ('too few rows')
     #    except:
     #            pass
     return(categorical_accuracy , val_accuracy, train_loss , lrd,  
            train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss ,picloss0,pic,pic0)
 #############################################################################################################################
 categorical_accuracy , val_accuracy, train_loss , lrd,  train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss,picloss0,pic,pic0=getData(reportDir)
-categorical_accuracy1 , val_accuracy1, train_loss1 , lrd1,  train_loss1, val_lossd1 , dice_coefd1, val_dice_coefd1, x1 ,pfile1,picloss1,picloss01,pic1,pic01=getData(reportDir1)
+if reportDir1 !='':
+    categorical_accuracy1 , val_accuracy1, train_loss1 , lrd1,  train_loss1, val_lossd1 , dice_coefd1, val_dice_coefd1, x1 ,pfile1,picloss1,picloss01,pic1,pic01=getData(reportDir1)
 
 #################################################################################################################"
 # plotting
 ##########accuracy
-ne=min(len(x),len(x1))
-if len(x1)>len(x):
-    print('x1 more than x',len(x1),len(x))
-#    val_accuracy=val_accuracy+[val_accuracy[-1]]*(len(x1)-len(x))
-#    train_loss=train_loss+[train_loss[-1]]*(len(x1)-len(x))
-#    val_lossd=val_lossd+[val_lossd[-1]]*(len(x1)-len(x))
-#    dice_coefd=dice_coefd+[dice_coefd[-1]]*(len(x1)-len(x))
-#    val_dice_coefd=val_dice_coefd+[val_dice_coefd[-1]]*(len(x1)-len(x))
-#    val_dice_coefd=val_dice_coefd+[val_dice_coefd[-1]]*(len(x1)-len(x))
-#    categorical_accuracy=categorical_accuracy+[categorical_accuracy[-1]]*(len(x1)-len(x))
-    categorical_accuracy1=categorical_accuracy1[0:ne]
-    val_accuracy1=val_accuracy1[0:ne]
-
-    train_loss1=train_loss1[0:ne]
-    val_lossd1=val_lossd1[0:ne]
-    dice_coefd1=dice_coefd1[0:ne]
-    val_dice_coefd1=val_dice_coefd1[0:ne]
-
-
-
-#    for i in range (ne,len(x1)):
-#        x.append(str(i))
-
-    xa=x1[0:ne]
-
-else:
-    xa=x[0:ne]
-    print('x more than x1',len(x1),len(x))
-    val_accuracy1=val_accuracy1+[val_accuracy1[-1]]*(len(x)-len(x1))
-
-    train_loss1=train_loss1+[train_loss1[-1]]*(len(x)-len(x1))
-    val_lossd1=val_lossd1+[val_lossd1[-1]]*(len(x)-len(x1))
-    dice_coefd1=dice_coefd1+[dice_coefd1[-1]]*(len(x)-len(x1))
-    val_dice_coefd1=val_dice_coefd1+[val_dice_coefd1[-1]]*(len(x)-len(x1))
-    categorical_accuracy1=categorical_accuracy1+[categorical_accuracy1[-1]]*(len(x)-len(x1))
-
-
+if reportDir1 !='':
+    ne=min(len(x),len(x1))
+    if len(x1)>len(x):
+        print('x1 more than x',len(x1),len(x))
+    #    val_accuracy=val_accuracy+[val_accuracy[-1]]*(len(x1)-len(x))
+    #    train_loss=train_loss+[train_loss[-1]]*(len(x1)-len(x))
+    #    val_lossd=val_lossd+[val_lossd[-1]]*(len(x1)-len(x))
+    #    dice_coefd=dice_coefd+[dice_coefd[-1]]*(len(x1)-len(x))
+    #    val_dice_coefd=val_dice_coefd+[val_dice_coefd[-1]]*(len(x1)-len(x))
+    #    val_dice_coefd=val_dice_coefd+[val_dice_coefd[-1]]*(len(x1)-len(x))
+    #    categorical_accuracy=categorical_accuracy+[categorical_accuracy[-1]]*(len(x1)-len(x))
+        categorical_accuracy1=categorical_accuracy1[0:ne]
+        val_accuracy1=val_accuracy1[0:ne]
     
-print ('last epoch min:',ne)
+        train_loss1=train_loss1[0:ne]
+        val_lossd1=val_lossd1[0:ne]
+        dice_coefd1=dice_coefd1[0:ne]
+        val_dice_coefd1=val_dice_coefd1[0:ne]
+    
+    
+    
+    #    for i in range (ne,len(x1)):
+    #        x.append(str(i))
+    
+        xa=x1[0:ne]
+    
+    else:
+        xa=x[0:ne]
+        print('x more than x1',len(x1),len(x))
+        val_accuracy1=val_accuracy1+[val_accuracy1[-1]]*(len(x)-len(x1))
+    
+        train_loss1=train_loss1+[train_loss1[-1]]*(len(x)-len(x1))
+        val_lossd1=val_lossd1+[val_lossd1[-1]]*(len(x)-len(x1))
+        dice_coefd1=dice_coefd1+[dice_coefd1[-1]]*(len(x)-len(x1))
+        val_dice_coefd1=val_dice_coefd1+[val_dice_coefd1[-1]]*(len(x)-len(x1))
+        categorical_accuracy1=categorical_accuracy1+[categorical_accuracy1[-1]]*(len(x)-len(x1))
+    
+    
+        
+    print ('last epoch min:',ne)
 #print('0',len(val_accuracy))
 #print('1',len(val_accuracy1))
 #print(len(x))
@@ -255,18 +274,32 @@ ax = fig.add_subplot(1,1,1)
 ax.set_title('Accuracy '+reportDir+' as master',fontsize=10)
 ax.set_xlabel('# Epochs')
 ax.set_ylabel('value')
-ax.yaxis.tick_right()
-ax.yaxis.set_ticks_position('both')
+#ax.yaxis.tick_right()
+#ax.yaxis.set_ticks_position('both')
 
 
 
-#plt.ylim(0.95,1.0)
+#plt.ylim(0.5,1.0)
 #plt.ylim(0.85,0.96)
-ax.plot(x,categorical_accuracy, label='categorical_accuracy');
-ax.plot(x,categorical_accuracy1, label='categorical_accuracy1');
+ax.plot(x,categorical_accuracy, label='accuracy');
+if reportDir1 !='':
+    ax.plot(x,categorical_accuracy1, label='accuracy1');
+ax.plot(x,val_accuracy, label='val_accuracy');
+if reportDir1 !='':
+    ax.plot(x,val_accuracy1, label='val_accuracy1');
 
-ax.plot(x,val_accuracy, label='val_categorical_accuracy');
-ax.plot(x,val_accuracy1, label='val_categorical_accuracy1');
+if len(lrd)>0:
+#    ax.yaxis.set_label_position("right")
+#    ax.yaxis.tick_right()
+   
+    ax1=ax.twinx()
+#    ax1.yaxis.set_label_position("left")
+#    ax1.yaxis.tick_left()
+    ax1.plot(x,lrd, label='lr',color='violet');
+    ax1.set_ylabel('lr', color='violet')
+    ax1.tick_params('y', colors='violet')
+
+
 
 
 #ax.plot(x,train_loss, label='train_loss');
@@ -292,23 +325,21 @@ limbmax=len(x)
 ax.yaxis.set_label_position("right")
 ax.yaxis.tick_right()
 ax.plot(x[limb:limbmax],train_loss[0:limbmax], label='loss');
-ax.plot(x[limb:limbmax],train_loss1[limb:limbmax], label='loss1');
 #
+if reportDir1 !='':
+    ax.plot(x[limb:limbmax],train_loss1[limb:limbmax], label='loss1');
 ax.plot(x[limb:limbmax],val_lossd[limb:limbmax], label='val_loss');
-ax.plot(x[limb:limbmax],val_lossd1[limb:limbmax], label='val_loss1');
+if reportDir1 !='':
+    ax.plot(x[limb:limbmax],val_lossd1[limb:limbmax], label='val_loss1');
 
-print(len(x[limb:limbmax]))
-print(len(picloss[limb:limbmax]))
+#print(len(x[limb:limbmax]))
+#print(len(picloss[limb:limbmax]))
 ax.plot(x[limb:limbmax],picloss[limb:limbmax], label='val_loss pic');
 ax.plot(x[limb:limbmax],picloss0[limb:limbmax], label='val_loss pic min');
 #ax1.set_ylim(0.,1e-1)
-if len(lrd)>0:
-    ax.yaxis.set_label_position("right")
-    ax.yaxis.tick_right()
-    ax1=ax.twinx()
-    ax1.plot(x[limb:limbmax],lrd[limb:limbmax], label='lr',color='violet');
-    ax1.set_ylabel('lr', color='violet')
-    ax1.tick_params('y', colors='violet')
+
+
+
 
 legend = ax.legend(loc='lower left', shadow=False,fontsize=10)
 plt.savefig(os.path.join(pfile,'loss.png'))
@@ -317,23 +348,29 @@ plt.show()
 ######### iou
 
 fig = plt.figure()
-#plt.ylim(0.45,0.55)
+plt.xlim(200,285)
 ax = fig.add_subplot(1,1,1)
 ax.set_title('Dice coeff '+reportDir+' as master',fontsize=10)
 ax.plot(x,dice_coefd, label='dice_coef');
-ax.plot(x,dice_coefd1, label='dice_coef1');
+if reportDir1 !='':
+    ax.plot(x,dice_coefd1, label='dice_coef1');
 ax.plot(x,val_dice_coefd, label='val_dice_coef');
-ax.plot(x,val_dice_coefd1, label='val_dice_coef1');
 ax.yaxis.set_label_position("right")
 ax.yaxis.tick_right()
-if len(lrd)>0:
-    ax1=ax.twinx()
-    ax1.plot(x,lrd, label='lr',color='violet');
-    ax1.set_ylabel('lr', color='violet')
-    ax1.tick_params('y', colors='violet')
+#if len(lrd)>0:
+#    ax1=ax.twinx()
+#    ax1.plot(x,lrd, label='lr',color='violet');
+#    ax1.set_ylabel('lr', color='violet')
+#    ax1.tick_params('y', colors='violet')
+if reportDir1 !='':
+    ax.plot(x,val_dice_coefd1, label='val_dice_coef1');
+
 
 ax.plot(x,pic, label='val_dice_coef pic');
 ax.plot(x,pic0, label='val_dice_coef pic max');
+ax1=ax.twinx()
+ax1.plot(x,lrd, label='lr',color='violet');
+
 legend = ax.legend(loc='lower left', shadow=True,fontsize=10)
 plt.savefig(os.path.join(pfile,'iou.png'))
 plt.show()
