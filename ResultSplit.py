@@ -13,12 +13,15 @@ import os
 import sys
 
 nbSplit=10
+max_iou=0
+max_iou_i=1000
 max_dice_coef=0
-max_dice_coef_i=100
+max_dice_coef_i=2000
 min_val_loss=100
 min_val_loss_i=0
 epoch_for_max_dice_coef=0
 epoch_for_min_val_loss=0
+epoch_for_max_iou =0
 
 #sys.path.append('/home/sylvain/Documents/horasis/IAsys/pixelmap/python')
 import matplotlib.pyplot as plt
@@ -29,12 +32,12 @@ import matplotlib.pyplot as plt
 #reportDir='unetphoe/new'
 #reportDir='unetresnet/wocosine'
 #reportDir='unetresnetrial/a'
-reportDir='unetresnet/j' #
+reportDir='unetresnet/k' #
 #reportDir='UResNet34/a' #
 #reportDir='UResNet34trial/a' #
 
 
-#reportDir='r0ncD0/a'
+reportDir='UEfficientNet/b'
 
 
 
@@ -54,7 +57,8 @@ cwd=os.getcwd()
 
 ##########################################################################
 def getData(nS):
-    global max_dice_coef,max_dice_coef_i,min_val_loss,min_val_loss_i,epoch_for_max_dice_coef,epoch_for_min_val_loss
+    global max_iou,max_iou_i,max_dice_coef,max_dice_coef_i,min_val_loss,min_val_loss_i,epoch_for_max_dice_coef,epoch_for_min_val_loss
+    global epoch_for_max_iou
     pfile=os.path.join(cwdtop,reportDir,nS)
 #    print ('path to get csv with train data',pfile)
     # which file is the source
@@ -84,8 +88,8 @@ def getData(nS):
     lr='lr'
     dice_coef='dice_coef'
     val_dice_coef='val_dice_coef'
-    #my_iou_metric='my_iou_metric'
-    #val_my_iou_metric='val_my_iou_metric'
+    my_iou_metric='my_iou_metric'
+    val_my_iou_metric='val_my_iou_metric'
     
     
     filei = os.path.join(pfile,ft)
@@ -100,6 +104,8 @@ def getData(nS):
         val_lossd = []
         dice_coefd=[]
         val_dice_coefd=[]
+        my_iou_metricd=[]
+        val_my_iou_metricd=[]
         x = []
     
     #    print reader
@@ -116,6 +122,10 @@ def getData(nS):
                     x.append(int(row['epoch']))
                     try:                
                         lrd.append(float(row[lr]))
+                        my_iou_metricd.append(float(row[my_iou_metric]))
+                        val_my_iou_metricd.append(float(row[val_my_iou_metric]))
+                    
+                    
                     except:
                             pass
     
@@ -138,7 +148,9 @@ def getData(nS):
     val_l=list(val_dice_coefd)
     Reverse=True
     #print val_l
+    print ( reportDir,nS)
     print ( '-------dice coeff-------',reportDir,nS)
+
     #for i in range(int(row['epoch'])):
     
 #    print ('-----')
@@ -166,7 +178,31 @@ def getData(nS):
         min_val_loss_i=nS
         epoch_for_min_val_loss=val_l.index(sorted(val_l[limb:],reverse=Reverse)[0])
 
-    print ('-----')
+    print ('--val IOU---',reportDir,nS)
+    val_l=list(val_my_iou_metricd)
+    Reverse=True
+ 
+    #    try:
+    print ('maximum maximorum for iou from rpoch: ',str(limb),sorted(val_l[limb:],reverse=Reverse)[0])
+    if sorted(val_l[limb:],reverse=Reverse)[0]>max_iou:
+        max_iou=sorted(val_l[limb:],reverse=Reverse)[0]
+        max_iou_i=nS
+        epoch_for_max_iou=val_l.index(sorted(val_l[limb:],reverse=Reverse)[0])
+        
+    print ('epoch for max:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
+    print('------------')
+#    
+#    print ('epoch for min:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
+#    maxdicecoef=sorted(val_l[limb:],reverse=Reverse)[i]
+##            print(maxdicecoef)
+#    print ('max val dice_coef starting from epoch:',str(limb),maxdicecoef)
+#    print ('epoch for max:',val_l.index(maxdicecoef),
+#           ' epoch: ',epoch[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
+#    if i==0:
+#        piciou0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+#    else:
+#        piciou[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+#    print ('min val loss for max min iou',val_lossd[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
 
     #            pass
     return(categorical_accuracy , val_accuracy, train_loss , lrd,  
@@ -177,4 +213,6 @@ for ns in range(nbSplit):
     categorical_accuracy , val_accuracy, train_loss , lrd,  train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss,picloss0,pic,pic0=getData(str(ns))
 print('number split max dice_coef: ',max_dice_coef_i,' max dice coef: ', max_dice_coef, 'epoch: ',epoch_for_max_dice_coef)
 print('number split min val_loss: ',min_val_loss_i,' min val loss: ', min_val_loss,' epoch: ',epoch_for_min_val_loss)
+print('number split max iou: ',max_iou_i,' max iou ',max_iou,' epoch: ',epoch_for_max_iou)
+
 

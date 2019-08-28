@@ -7,19 +7,20 @@ from sklearn.model_selection import KFold
 import os
 import keras
 import pydicom
-from tqdm import tqdm_notebook
+#from tqdm import tqdm_notebook
+from tqdm import tqdm
 #from keras import backend as K
 #from sklearn.model_selection import train_test_split
 import gc
 from skimage.transform import resize
 import PIL
-from tqdm import tqdm
+#from tqdm import tqdm
 import math
 from keras.callbacks import  ModelCheckpoint, ReduceLROnPlateau,CSVLogger
 #from keras.callbacks import EarlyStopping,LearningRateScheduler
 from skimage import measure
 from sklearn.metrics import classification_report
-from sklearn.metrics import jaccard_similarity_score
+from sklearn.metrics import jaccard_score
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
@@ -55,7 +56,10 @@ random.seed(42)
 #reportDir='unetresnetrial'
 #reportDir='unetref517'
 #reportDir='merge'
-reportDir='unetresnet'
+#reportDir='unetresnet'
+reportDir='UEfficientNet'
+#reportDir='UEfficientNettrial'
+
 #reportDir='unetsimple'
 #reportDir='r0nctrial'
 #reportDir='unetresnet'
@@ -67,7 +71,8 @@ reportDir='unetresnet'
 #dirToConsider='wocosine' # for loading model
 #dirToConsider='testLr1' # for loading model
 #dirToConsider='a16merge' # for loading model
-dirToConsider='j' # for loading model
+dirToConsider='b' # for loading model
+dirToConsider='reference/b3loss' # for loading model
 
 
 withScore=True# score for submission
@@ -78,20 +83,20 @@ lookForLearningRate=False # actual training
 
 withPlot= False# plot images during training
 withPlot32= False# plot images and calculates min roi
-withReport=False # calculate f score
+withReport=True # calculate f score
 withEval=False # evaluates as for scoring on validation data
 calparam=False #calculate minroi
 
-withScorePixel=False # calculate f score by pixel also
+withScorePixel=True # calculate f score by pixel also
 withRedoRoi=False # evaluates as for scoring on validation data
 withMRoi=False
 withmaskrcnn=False # use maskrcnn results for score True in merge
 withrien=False # filter result
 
-usePreviousWeight=True
+usePreviousWeight=False
+useIOU=False
 
 zerocenter=True
-
 #histAdapt='NAN' # use history adapt for pre -treatment
 #histAdapt='clahe' # use history adapt for pre -treatment
 histAdapt='histAdapt' # use history adapt for pre -treatment
@@ -107,7 +112,7 @@ writeModel=False
 img_rows=512 #533
 img_cols=512
 
-nb_epoch=100
+nb_epoch=200
 #nb_epoch=20
 
 
@@ -118,15 +123,16 @@ num_class=1
 num_bit=1   
 # work wit=h Kfolds
 kfold=10
-startKfold=0 # 0 to start
-splitKfold=False
+startKfold=8 # 0 to start
+splitKfold=True
+
 
 subreport=dirToConsider
 minRoiForScore=0
 thForScore=0.5
 #threshold_best=0.5
-prob_thresholds=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-#prob_thresholds=[0.1,0.2]
+prob_thresholds=[0.1,0.2,0.3,0.4,0.5,0.6,0.7]
+#prob_thresholds=[0.1,0.5, ]
 
 #prob_thresholds=[0.5]
 
@@ -165,7 +171,8 @@ if not withTrain:
     kfold=0
 
 
-if not withTrain and withScore:
+if  withScore:
+    withReport=False
     withTrain=False # score for submission
     withPlot= False# plot images and calculates min roi
     withPlot32= False# plot images and calculates min roi
@@ -195,6 +202,28 @@ args = vars(ap.parse_args())
 reportDir = args["dir"]
 
 
+if reportDir=='UEfficientNettrial':
+    modelName='UEfficientNet'
+    kfold=3
+    img_rows=256
+    img_cols=256
+    nb_epoch=4
+    mergeDir=False
+    num_bit=3
+    learning_rate=1e-3
+    d0=0.5
+    batchSize[modelName]=16 # 
+    nsubSamples=10#in %
+
+if reportDir=='UEfficientNet':
+    modelName='UEfficientNet'
+    mergeDir=False
+    num_bit=3
+    learning_rate=1e-3
+    d0=0.5
+    batchSize[modelName]=3 # 
+
+    
 if reportDir=='unetphoe':
     modelName='unetphoe'
     mergeDir=False
@@ -207,7 +236,7 @@ if reportDir=='unetresnet':
     mergeDir=False
     learning_rate=minLR
     d0=0.5
-    batchSize[modelName]=6# 3 for create network 512 1 dor 1024
+    batchSize[modelName]=7# 3 for create network 512 1 dor 1024
     if lookForLearningRate:
             kfold=0
             nb_epoch=5
@@ -242,8 +271,8 @@ if reportDir=='unetresnetrial':
     learning_rate=minLR
     img_rows=256
     img_cols=256
-    batchSize[modelName]=30  # 10 for create network 512
-    nb_epoch=20
+    batchSize[modelName]=20  # 10 for create network 512
+    nb_epoch=10
     turnNumber=1
     PercentVal=10 # and test
     nsubSamples=15#in %
@@ -342,15 +371,15 @@ if reportDir=='merge':
     batchSize[modelName2]=12 # for create network 512
     batchSize[modelName3]=8 # for create network 512
 
-#minRoiToConsider[128]=100 # start 1300.for 512
-#minRoiToConsider[256]=325 # start 1300.for 512
-#minRoiToConsider[512]=1300 # start 1300.for 512
+minRoiToConsider[128]=100 # start 1300.for 512
+minRoiToConsider[256]=325 # start 1300.for 512
+minRoiToConsider[512]=1300 # start 1300.for 512
 #minRoiToConsider[1024]=5200 # start 1300.for 512
 ##r1024=1024./img_rows
 ##minRoiToConsider[1024]=r1024*r1024*minRoiToConsider[img_rows]
-#minRoiVal=minRoiToConsider[img_rows]
+minRoiVal=minRoiToConsider[img_rows]
 
-#miRoiList= [0,minRoiVal/4.0,minRoiVal/2.0, 3.*minRoiVal/4,minRoiVal]
+miRoiList= [0,minRoiVal/4.0,minRoiVal/2.0, 3.*minRoiVal/4,minRoiVal]
 miRoiList=[0]
 
 reportDir=os.path.join(cwdtop,reportDir,subreport)
@@ -409,6 +438,7 @@ f.write('use Histogram adapt: '+str(histAdapt)+'\n')
 f.write('use data augmentation: '+str(augAskAsk)+'\n')
 f.write('use PreviousWeight: '+str(usePreviousWeight)+'\n')
 f.write('withWeight for classes: '+str(withWeight)+'\n')
+f.write('useIOU: '+str(useIOU)+'\n')
 if withWeight:
     f.write('weights for classes: '+str(weights)+'\n')
 
@@ -452,7 +482,7 @@ def getfilenames():
 #df = pd.read_csv(RAW_TRAIN_LABELS, header=None, index_col=0)
     df_full = pd.read_csv(RAW_TRAIN_LABELS, index_col='ImageId')
     
-    for n, _id in tqdm_notebook(enumerate(file_train), total=len(file_train)):
+    for n, _id in tqdm(enumerate(file_train), total=len(file_train)):
         try:
                 if not '-1'  in df_full.loc[_id.split('/')[-1][:-4],' EncodedPixels']:
         #            Y_train[n] = np.zeros((1024, 1024, 1))
@@ -756,7 +786,7 @@ def image_n_encode(train_images_names,encode_df):
     train_imgs = [] 
     train_encode = []
     c = 0
-    for f in tqdm_notebook(train_images_names):
+    for f in tqdm(train_images_names):
         if c >= 2000:
             break
         try:
@@ -783,7 +813,115 @@ def cosine_annealing(x):
 learning_rates = keras.callbacks.LearningRateScheduler(cosine_annealing)
 
 
-
+#class generator0(keras.utils.Sequence):
+#    'Generates data for Keras'
+#    def __init__(self, list_IDs, df_full, pneumothorax=None, batch_size=32, 
+#                 image_size=(256,256), n_classes=2,n_channels=1 ,shuffle=True, augment=False, predict=False):
+#        self.list_IDs = list_IDs
+#        self.df_full = df_full
+#        self.pneumothorax = pneumothorax
+#        self.batch_size = batch_size
+#        self.image_size = image_size
+#        self.shuffle = shuffle
+#        self.augment = augment
+#        self.predict = predict
+#        self.on_epoch_end()
+#        self.n_classes = n_classes
+#        self.n_channels = n_channels
+#
+#    def __len__(self):
+#        'Denotes the number of batches per epoch'
+#        return int(np.floor(len(self.list_IDs) / self.batch_size))
+#
+#    def __getitem__(self, index):
+#        'Generate one batch of data'
+#        # Generate indexes of the batch
+#        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
+#
+#        # Find list of IDs
+#        list_IDs_temp = [self.list_IDs[k] for k in indexes]
+#
+#        # Generate data
+#        X, y = self.__data_generation(list_IDs_temp)
+#
+#        return X, y
+#
+#    def on_epoch_end(self):
+#        'Updates indexes after each epoch'
+#        self.indexes = np.arange(len(self.list_IDs))
+#        if self.shuffle == True:
+#            np.random.shuffle(self.indexes)
+#
+#    def __data_generation(self, list_IDs_temp):
+#        'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
+#        X = np.empty((self.batch_size, *self.image_size, self.n_channels))
+#        y = np.empty((self.batch_size,*self.image_size, self.n_channels), dtype=np.uint8)
+#        for i, ID in enumerate(list_IDs_temp):
+#
+#            img,correct,MIN_BOUND,MAX_BOUND,imgShape=geneTable(ID,self.image_size[0],self.image_size[1],dirWriteBmp='',
+#                                                writeBmp=False,resize=True,histAdapt=histAdapt)
+#    #        img = pydicom.read_file(filename).pixel_array
+#    #        img = resize(img,self.image_size)
+#    
+#            msk = np.zeros(self.image_size,np.uint8)
+#            # get filename without extension
+#            ID = ID.split('/')[-1]
+#            # if image contains pneumonia
+#            if ID in self.pneumothorax:
+#                msk=maskfromrle(self.df_full,ID,self.image_size[0],self.image_size[1],rle2mask)
+#    #            if type(self.df_full.loc[filename[:-4],' EncodedPixels']) == str:
+#    #                msk = rle2mask(self.df_full.loc[filename[:-4],' EncodedPixels'], 1024, 1024)
+#    ##                print('good1',msk.max())
+#    #                    
+#    #            else:
+#    #                    msk= np.zeros((1024, 1024),np.uint16)
+#    #                    for x in self.df_full.loc[filename[:-4],' EncodedPixels']:                      
+#    #                        msk =  np.clip(msk + rle2mask(x, 1024, 1024),0,255)
+#    #                        msk=msk.astype(np.uint8)
+#    ##                    print('good2',msk.max())
+#    ##                    plt.imshow(msk)
+#    ##                    plt.show()
+#    ##       
+#    #        msk=cv2.resize(msk,(self.image_size[0],self.image_size[1]),interpolation=cv2.INTER_NEAREST)
+#    #        msk=msk.T
+#    #        print('after resize',msk.max())
+#            if self.augment:
+#                addint,multint,rotimg,resiz,shiftv,shifth,rotateint=generandom(maxadd,
+#                                        maxmult,maxrot,maxresize,maxshiftv,maxshifth,maxrotate,keepaenh)
+#                img=geneaug(img,addint,multint,rotimg,resiz,shiftv,shifth,rotateint,False,img.min(),img.max())
+#                msk=geneaug(msk,  0,    0,     rotimg,resiz,shiftv,shifth,rotateint,True,msk.min(),msk.max())
+#    #            img=datagen.apply_transform(img)
+#    #            msk=datagen.apply_transform(msk)
+#    
+#            img=normAdapt(img,MIN_BOUND,MAX_BOUND,zerocenter)
+#            
+#            # add trailing channel dimension
+#            
+#            img = np.expand_dims(img, -1)
+#            if num_bit==3:
+#                img = np.repeat(img,3,-1)
+#    
+#    
+#            msk = np.expand_dims(msk, -1)/255.
+#    
+##            return img, msk
+#            X[i,] = img
+#
+#            # Store class
+#            y[i] = msk
+#        # Initialization
+##        X = np.empty((self.batch_size, *self.dim, self.n_channels))
+##        y = np.empty((self.batch_size), dtype=int)
+##
+##        # Generate data
+##        for i, ID in enumerate(list_IDs_temp):
+##            # Store sample
+##            X[i,] = np.load('data/' + ID + '.npy')
+##
+##            # Store class
+##            y[i] = self.labels[ID]
+#
+#        return X, y
 
 class generator(keras.utils.Sequence):
     
@@ -842,9 +980,12 @@ class generator(keras.utils.Sequence):
         # add trailing channel dimension
         
         img = np.expand_dims(img, -1)
+        if num_bit==3:
+            img = np.repeat(img,3,-1)
+
+
         msk = np.expand_dims(msk, -1)/255.
-#        print(img.shape)
-#        print(msk.shape)
+
         return img, msk
     
     def __loadpredict__(self, filename):
@@ -855,6 +996,8 @@ class generator(keras.utils.Sequence):
         img=normAdapt(img,MIN_BOUND,MAX_BOUND,zerocenter)
         # add trailing channel dimension
         img = np.expand_dims(img, -1)
+        if num_bit==3:
+            img = np.repeat(img,3,-1)
         return img
         
     def __getitem__(self, index):
@@ -888,15 +1031,20 @@ class generator(keras.utils.Sequence):
             return imgs, msks
         
     def on_epoch_end(self):
-        if self.shuffle:
-            random.shuffle(self.filenames)
-        
+         
+#          'Updates indexes after each epoch'
+#          self.indexes = np.arange(len(self.filenames))
+          if self.shuffle == True:
+              np.random.shuffle(self.filenames)
+              
     def __len__(self):
         if self.predict:
             # return everything
             return int(np.ceil(len(self.filenames) / self.batch_size))
         else:
             # return full batches only
+#            return int(np.ceil(len(self.filenames) / self.batch_size))
+
             return int(len(self.filenames) / self.batch_size)
 # learning rate schedule
 def step_decay(epoch):
@@ -904,11 +1052,6 @@ def step_decay(epoch):
 	epochs_drop = 20.0
 	lrate = learning_rate * math.pow(drop, math.floor((1+epoch)/epochs_drop))
 	return lrate
-
-
-
-
-
 
 
 def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
@@ -927,10 +1070,10 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
     	step_size= STEP_SIZE * (len_train// BATCH_SIZE))
     
     #early stopping: 1.5 full set without increase: step-size*3 = 24
-    early_stopping=keras.callbacks.EarlyStopping(monitor='val_loss', patience=STEP_SIZE*3, verbose=1,min_delta=0.005,mode='min')  
-#    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5,
-#                                              patience=5, min_lr=1e-7,
-#                                              verbose=1,mode='auto')#init 5
+    early_stopping=keras.callbacks.EarlyStopping(monitor='val_loss', patience=15, verbose=1,min_delta=0,mode='min')  
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5,
+                                              patience=7, min_lr=1e-5,
+                                              verbose=1,mode='auto')#init 5
     if kfold>0 and splitKfold:
         lrdir=os.path.join(reportDir,str(kf))
         if not os.path.exists(lrdir) :
@@ -939,10 +1082,12 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
             lrdir=reportDir
 #    print(lrdir)
     
+#    checkpoint_path = os.path.join(lrdir,str(today)+'-{epoch:02d}-{val_my_iou_metric:.4f}.hdf5')
 #    checkpoint_path = os.path.join(lrdir,str(today)+'-{epoch:02d}-{val_dice_coef:.4f}.hdf5')
-    checkpoint_path = os.path.join(lrdir,str(today)+'-{epoch:02d}-{val_dice_coef:.4f}.hdf5')
+    checkpoint_path = os.path.join(lrdir,str(today)+'_loss_{epoch:02d}-{val_loss:.4f}.hdf5')
 
-#    checkpoint_path2 = os.path.join(lrdir,str(today)+'_dice-coef_{epoch:02d}-{val_acc:.2f}.hdf5')
+
+    checkpoint_path2 = os.path.join(lrdir,str(today)+'_iou_{epoch:02d}-{val_my_iou_metric:.4f}.hdf5')
     fileResult=os.path.join(lrdir,str(today)+'_e.csv')
 
 
@@ -950,8 +1095,9 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
     model_checkpoint = ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True,
                                        save_weights_only=True,  mode='min')
 
-#    model_checkpoint2 = keras.callbacks.ModelCheckpoint(checkpoint_path2, verbose=1,
-#                                monitor='val_dice_coef', save_best_only=True,save_weights_only=True,mode='max') 
+    model_checkpoint2 = keras.callbacks.ModelCheckpoint(checkpoint_path2, verbose=1,
+                                monitor='val_my_iou_metric', save_best_only=True,save_weights_only=True,mode='max') 
+    
     csv_logger = CSVLogger(fileResult,append=True)
 
     batch_size=batchSize[modelName]
@@ -987,9 +1133,9 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
 #                                  callbacks=[model_checkpoint,learning_rates,csv_logger,early_stopping],
 #                                  callbacks=[model_checkpoint,csv_logger,early_stopping,
 #                                             reduce_lr,model_checkpoint2],
-#                              callbacks=[model_checkpoint,csv_logger,early_stopping,
-#                                         reduce_lr],
-                              callbacks=[model_checkpoint,csv_logger,early_stopping, clr],
+                              callbacks=[model_checkpoint,csv_logger,early_stopping,
+                                         reduce_lr,model_checkpoint2],
+#                              callbacks=[model_checkpoint,csv_logger,early_stopping, clr],
 #                              callbacks=[csv_logger,early_stopping, clr],
 
 
@@ -1062,7 +1208,7 @@ def trainAct(tf,vf,kf,df_full,pneumothorax,model,lastepoch,len_train):
 ##    print(images_reshape.shape,images_reshape.min(),images_reshape.max())
 ##    print(mask_e_reshape.shape,mask_e_reshape.min(),mask_e_reshape.max())
 #    model.fit(images_reshape,mask_e_reshape,validation_split = 0.1,epochs = 1,batch_size = 16)
-    gc.collect()
+#    gc.collect()
     return lastepoch
     
 
@@ -1116,7 +1262,7 @@ def withTrainf():
     print ('total training time spent :' ,spenttime  )
     f.write('total time spent: '+str(spenttime)+'\n')
     f.close()
-    gc.collect()
+#    gc.collect()
 
 
 
@@ -1192,23 +1338,28 @@ def lookForLearningRatef():
 
 
 def withReportf():
-    print ('----------------------------------------')
+    print ('calculate param for optimum report -------------------')
     random.seed(42)
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
+    train_filenames=train_filenames[0:50]
     print ('calculate report f-score on ',len(train_filenames),' validation data')
     f=open(todaytrshFile,'a')
     f.write('calculate report f-score on: '+str(len(train_filenames))+' validation data\n')
     f.write('----------------------------------------------------------------\n')
     f.close()
-
+    
     lvfn=len(train_filenames)  
+    print(lvfn)
     try:
-        basize= 20*min(batchSize[modelName],batchSize[modelName2],batchSize[modelName3])
+        basize= 10*min(batchSize[modelName],batchSize[modelName2],batchSize[modelName3])
     except:
-        basize= 20*batchSize[modelName]
+        basize= 10*batchSize[modelName]
     valid_gen = generator(train_filenames,df_full, pneumothorax, 
                               batch_size=basize, image_size=(img_rows,img_cols), 
+#                              n_classes=2,n_channels=num_bit , 
                               shuffle=False, augment=False, predict=False)
+#    list_IDs, df_full, pneumothorax=None, batch_size=32, 
+#                 image_size=(256,256), n_classes=2,n_channels=1 ,shuffle=True, augment=False, predict=False):
    
     roiGoodacc =0
     roiGoodfs=0
@@ -1222,15 +1373,27 @@ def withReportf():
     fsGood=0
     recallGood=0
     
+    roiGoodaccpi =0
+    roiGoodfspi=0
+    roiGoodrecallpi=0
+    
+    thGoodaccpi=1
+    thGoodfspi=1
+    thGoodrecallpi=1
+    
+    accGoodpi=0
+    fsGoodpi=0
+    recallGoodpi=0
+    
 #    bA=False
     indb=-1
     for imgs, msks in valid_gen:
         indb+=1
 
-        preds = model.predict(imgs,batch_size=batchSize[modelName],verbose=1)
+        preds = model.predict(imgs,batch_size=10*batchSize[modelName],verbose=1)
         if mergeDir:          
-            preds2 = model2.predict(imgs,batch_size=batchSize[modelName2],verbose=1)     
-            preds3 = model3.predict(imgs,batch_size=batchSize[modelName3],verbose=1)    
+            preds2 = model2.predict(imgs,batch_size=10*batchSize[modelName2],verbose=1)     
+            preds3 = model3.predict(imgs,batch_size=10*batchSize[modelName3],verbose=1)    
             preds=(preds+preds2+preds3)/3
             preds2=[]
             preds3=[]
@@ -1241,11 +1404,15 @@ def withReportf():
         else:
             predTot=np.concatenate((predTot,preds),axis=0)
             maskTot=np.concatenate((maskTot,msks),axis=0)
+#            print(maskTot.shape)
+#            print(maskTot.shape[0],lvfn)
         if maskTot.shape[0]>=lvfn:
+#            print('break',maskTot.shape)
             predTot=predTot[:lvfn]
             maskTot=maskTot[:lvfn]
             break
     print('shape pred: ',predTot.shape)
+   
     preds=[]
     kernel=np.ones((3,3),np.uint8)  
       
@@ -1267,12 +1434,13 @@ def withReportf():
             for ind,( msk, predorig) in enumerate(zip(maskTot, predTot)):
                     # threshold true mask
                 mskt = msk[:, :, 0] > 0.5
-
+                del msk
                 if mskt.max()==True:
                     y_true[ind]=1
                 pred=predorig.copy()
                 np.putmask(pred,predorig > th,255)
                 np.putmask(pred,predorig <= th,0)
+                del predorig
                 pred = pred.reshape(img_rows,img_cols)
                 _, maskd = cv2.threshold(pred, 200, 255, cv2.THRESH_BINARY)
                 kernel1 = np.ones((3,3), np.uint8)
@@ -1363,9 +1531,24 @@ def withReportf():
                
                 ysf = (predTot[:, :, :, 0] > th).flatten()
                 yvf = (maskTot[:, :, :, 0] > 0.5).flatten()
+#                print(yvf.max())
                         
                 fscore, acc, recall, pres, cmat = evaluate(yvf,ysf,2)
-                iou=jaccard_similarity_score(yvf, ysf)
+                iou=jaccard_score(yvf, ysf)
+                if fscore>fsGoodpi:
+                    fsGoodpi=fscore
+                    roiGoodfspi=minRoif
+                    thGoodfspi=th
+            
+                if acc>accGoodpi:
+                    accGoodpi=acc
+                    roiGoodaccpi=minRoif
+                    thGoodaccpi=th
+                    
+                if recall>recallGoodpi:
+                    recallGoodpi=recall
+                    roiGoodrecallpi=minRoif
+                    thGoodrecallpi=th
                 print ('Val iou: ',iou)
                 print ('classification_report:')
                 print (classification_report(yvf, ysf))
@@ -1375,7 +1558,7 @@ def withReportf():
                 
                 filew=open(todaytrshFile,'a')
                 
-                filew.write('score for pixel for th: '+str(th)+'minroiarea:'+minRoif+'\n')          
+                filew.write('score for pixel for th: '+str(th)+'minroiarea:'+str(minRoif)+'\n')          
                 filew.write('f-score is : '+ str(fscore)+'\n')
                 filew.write('accuray is : '+ str(acc)+'\n')
                 filew.write('recall is : '+ str(recall)+'\n')
@@ -1393,6 +1576,8 @@ def withReportf():
                 filew.write(classification_report(yvf, ysf)+'\n')
                 filew.write('------------------------------------------\n')
                 filew.close()
+    del predTot,maskTot
+    
     print ('summary:    ')
     print ('roi area for max acc',roiGoodacc)
     print ('roi area for max fs',roiGoodfs)
@@ -1405,6 +1590,19 @@ def withReportf():
     print ('max acc',accGood)
     print ('max fs',fsGood)
     print ('max recall'  ,recallGood )
+    if withScorePixel:
+        print ('summary pixel:    ')
+        print ('roi area for max acc',roiGoodaccpi)
+        print ('roi area for max fs',roiGoodfspi)
+        print ('roi area for max recall',roiGoodrecallpi)
+            
+        print( 'th for max acc',thGoodaccpi)
+        print( 'th for max fs',thGoodfspi)
+        print ('th for max recall',thGoodrecallpi)
+            
+        print ('max acc',accGoodpi)
+        print ('max fs',fsGoodpi)
+        print ('max recall'  ,recallGoodpi )
 
     todaytrshFilePlot=os.path.join(reportDir,todayracine+'.png')  
 
@@ -1439,7 +1637,7 @@ def test_images_pred(test_fns,th):
 
     pred_rle = []
     ids = []
-    for f in tqdm_notebook(test_fns):
+    for f in tqdm(test_fns):
         img = pydicom.read_file(f).pixel_array
         img = resize(img,(img_rows,img_cols))
         img = model.predict(img.reshape(1,img_rows,img_cols,1))
@@ -1507,8 +1705,11 @@ def loadModelGlobal(kf):
                     pathToWeight=os.path.join(reportDir,str(kf))
             else:
                 pathToWeight=os.path.join(reportDir)
-
-            listmodel=[name for name in os.listdir(pathToWeight) if name.find('.hdf5')>0] 
+            if useIOU:
+                str2ch='iou'
+            else:
+                str2ch='loss'
+            listmodel=[name for name in os.listdir(pathToWeight) if name.find('.hdf5')>0 and name.find(str2ch)>0] 
             if len(listmodel)>0:
                 namelastc=load_weights_set(pathToWeight)  
                 f.write('load weight: ' +namelastc+'\n')
@@ -1577,6 +1778,8 @@ def onePredf():
 
         img = np.expand_dims(img, -1)
         img = np.expand_dims(img, 0)
+        if num_bit==3:
+            img = np.repeat(img,3,-1)
         print(img.shape,img.min(),img.max())
 
         pred = model.predict(img,verbose=1)
@@ -1736,7 +1939,7 @@ def withScoref1():
     
     
 def withScoref():
-    
+    print('start fscore for: ',thForScore)
     test_fns=sorted(glob(TEST_DCM_DIR+'*/*/*/*.dcm'))
     lvfn=len(test_fns)
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
@@ -1778,7 +1981,7 @@ def withScoref():
     rles = []
     i,max_img = 1,10
     plt.figure(figsize=(16,4))
-    for p in tqdm_notebook(predTot):
+    for p in tqdm(predTot):
         p = p.squeeze()
         im = cv2.resize(p,(1024,1024))
         im = im > thForScore
@@ -1924,7 +2127,7 @@ def calparamf():
 #df = pd.read_csv(RAW_TRAIN_LABELS, header=None, index_col=0)
     df_full = pd.read_csv(RAW_TRAIN_LABELS, index_col='ImageId')
     
-    for n, _id in tqdm_notebook(enumerate(file_train), total=len(file_train)):
+    for n, _id in tqdm(enumerate(file_train), total=len(file_train)):
         try:
                 if not '-1'  in df_full.loc[_id.split('/')[-1][:-4],' EncodedPixels']:
         #            Y_train[n] = np.zeros((1024, 1024, 1))

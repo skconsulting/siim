@@ -32,10 +32,13 @@ reportDir='unetresnet/a16/0' # master will give max epoch
 reportDir1='unetresnet/i' # 
 #reportDir='UResNet34/a/3' # 
 reportDir1='' #
+#reportDir1='UEfficientNet/a/1' 
 
 #reportDir1='UResNet34trial/d/1' 
 #reportDir1='unetresnetrial/b/0' 
-reportDir='unetresnet/j' 
+#reportDir='UEfficientNettrial/b' 
+reportDir='UEfficientNet/b/9' 
+
 
 
 
@@ -100,6 +103,9 @@ def getData(reportDir):
     lr='lr'
     dice_coef='dice_coef'
     val_dice_coef='val_dice_coef'
+    my_iou_metric='my_iou_metric'
+    val_my_iou_metric='val_my_iou_metric'
+    
     #my_iou_metric='my_iou_metric'
     #val_my_iou_metric='val_my_iou_metric'
     
@@ -117,6 +123,8 @@ def getData(reportDir):
         val_lossd = []
         dice_coefd=[]
         val_dice_coefd=[]
+        my_iou_metricd=[]
+        val_my_iou_metricd=[]
         x = []
         epoch=[]
     
@@ -137,6 +145,8 @@ def getData(reportDir):
 
                     try:                
                         lrd.append(float(row[lr]))
+                        my_iou_metricd.append(float(row[my_iou_metric]))
+                        val_my_iou_metricd.append(float(row[val_my_iou_metric]))
                     except:
                             pass
 #    print('x    ',x)
@@ -161,6 +171,8 @@ def getData(reportDir):
     pic0=np.zeros(len(x),np.float)
     picloss=np.zeros((len(x)),np.float)
     picloss0=np.zeros(len(x),np.float)
+    piciou=np.zeros((len(x)),np.float)
+    piciou0=np.zeros(len(x),np.float)
 
     
     limb=0
@@ -178,9 +190,9 @@ def getData(reportDir):
             print (i,'maximum maximorum for dice_coef',reportDir)
             maxdicecoef=sorted(val_l[limb:],reverse=Reverse)[i]
 #            print(maxdicecoef)
-            print ('max val dice_coef starting from epoch:',str(limb),maxdicecoef)
-            print ('epoch for max:',val_l.index(maxdicecoef),
-                   ' epoch: ',epoch[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
+            print ('max val dice_coef starting from epoch:',str(limb),maxdicecoef, '  epoch: ',val_l.index(maxdicecoef))
+#            print ('epoch for max:',val_l.index(maxdicecoef),
+#                   ' epoch: ',epoch[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
             if i==0:
                 pic0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
             else:
@@ -198,28 +210,58 @@ def getData(reportDir):
     #print val_l
     
     #for i in range(int(row['epoch'])):
-#    try:
-#        for i in range(3):
-#        #    try:
-#            print ('-----')
-#            print (i,'minimum minimorum for val loss',reportDir)
-#            print ('min val loss starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[i])
+    try:
+        for i in range(3):
+        #    try:
+            print ('-----')
+            print (i,'minimum minimorum for val loss',reportDir)
+            maxdicecoef=sorted(val_l[limb:],reverse=Reverse)[i]
+
+            print ('min val loss starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[i],
+                   ' epoch for min:',val_l.index(maxdicecoef))
+
 #            print ('epoch for min:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[i]))
-#            if i==0:
-#                picloss0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
-#            else:
-#                picloss[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
-#            print ('max valiou for min val loss:',val_dice_coefd[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
-#    except:
-#            print ('too few rows')
+#            print ('epoch for min:',val_l.index(maxdicecoef))
+
+            if i==0:
+                picloss0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+            else:
+                picloss[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+            print ('max valiou for min val loss:',val_dice_coefd[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
+    except:
+            print ('too few rows')
+    print ('-----')
+    print ('--val IOU---')
+    val_l=list(val_my_iou_metricd)
+    Reverse=True
+    try:
+        for i in range(3):
+        #    try:
+            print ('-----')
+            print (i,'maximum maximorum for iou',reportDir)
+            maxdicecoef=sorted(val_l[limb:],reverse=Reverse)[i]
+
+#            print(maxdicecoef)
+            print ('max val dice_coef starting from epoch:',str(limb),maxdicecoef,
+                   ' epoch for max:',val_l.index(maxdicecoef))
+#            print ('epoch for max:',val_l.index(maxdicecoef),
+#                   ' epoch: ',epoch[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
+            if i==0:
+                piciou0[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+            else:
+                piciou[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])]=sorted(val_l[limb:],reverse=Reverse)[i]
+            print ('min val loss for max min iou',val_lossd[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
+    except:
+            print ('too few rows')
     #    except:
     #            pass
     return(categorical_accuracy , val_accuracy, train_loss , lrd,  
-           train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss ,picloss0,pic,pic0)
+           train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,
+           pfile,picloss ,picloss0,pic,pic0,my_iou_metricd,val_my_iou_metricd,piciou,piciou0)
 #############################################################################################################################
-categorical_accuracy , val_accuracy, train_loss , lrd,  train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss,picloss0,pic,pic0=getData(reportDir)
+categorical_accuracy , val_accuracy, train_loss , lrd,  train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss,picloss0,pic,pic0, my_iou_metricd,val_my_iou_metricd,piciou,piciou0=getData(reportDir)
 if reportDir1 !='':
-    categorical_accuracy1 , val_accuracy1, train_loss1 , lrd1,  train_loss1, val_lossd1 , dice_coefd1, val_dice_coefd1, x1 ,pfile1,picloss1,picloss01,pic1,pic01=getData(reportDir1)
+    categorical_accuracy1 , val_accuracy1, train_loss1 , lrd1,  train_loss1, val_lossd1 , dice_coefd1, val_dice_coefd1, x1 ,pfile1,picloss1,picloss01,pic1,pic01,my_iou_metricd1,val_my_iou_metricd1,piciou1,piciou01=getData(reportDir1)
 
 #################################################################################################################"
 # plotting
@@ -242,6 +284,8 @@ if reportDir1 !='':
         val_lossd1=val_lossd1[0:ne]
         dice_coefd1=dice_coefd1[0:ne]
         val_dice_coefd1=val_dice_coefd1[0:ne]
+        my_iou_metricd1=my_iou_metricd1[0:ne]
+        val_my_iou_metricd1=val_my_iou_metricd1[0:ne]
     
     
     
@@ -260,6 +304,9 @@ if reportDir1 !='':
         dice_coefd1=dice_coefd1+[dice_coefd1[-1]]*(len(x)-len(x1))
         val_dice_coefd1=val_dice_coefd1+[val_dice_coefd1[-1]]*(len(x)-len(x1))
         categorical_accuracy1=categorical_accuracy1+[categorical_accuracy1[-1]]*(len(x)-len(x1))
+        my_iou_metricd1=my_iou_metricd1+[my_iou_metricd1[-1]]*(len(x)-len(x1))
+        val_my_iou_metricd1=val_my_iou_metricd1+[my_iou_metricd1[-1]]*(len(x)-len(x1))
+
     
     
         
@@ -273,7 +320,7 @@ fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
 ax.set_title('Accuracy '+reportDir+' as master',fontsize=10)
 ax.set_xlabel('# Epochs')
-ax.set_ylabel('value')
+#ax.set_ylabel('value')
 #ax.yaxis.tick_right()
 #ax.yaxis.set_ticks_position('both')
 
@@ -308,7 +355,7 @@ if len(lrd)>0:
 legend = ax.legend(loc='lower right', shadow=True,fontsize=10)
 plt.savefig(os.path.join(pfile,'acc.png'))
 plt.show()
-
+del fig
 #####loss
 
 fig = plt.figure()
@@ -316,10 +363,10 @@ fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
 ax.set_title('Loss '+reportDir+' as master',fontsize=10)
 
-#ax.set_ylim(0.,0.06)
+#ax.set_ylim(0.3,0.6)
 limb=0
 limbmax=4
-limbmax=len(x)
+limbmax=-1
 #limbmax=ne
 
 ax.yaxis.set_label_position("right")
@@ -336,6 +383,8 @@ if reportDir1 !='':
 #print(len(picloss[limb:limbmax]))
 ax.plot(x[limb:limbmax],picloss[limb:limbmax], label='val_loss pic');
 ax.plot(x[limb:limbmax],picloss0[limb:limbmax], label='val_loss pic min');
+ax1=ax.twinx()
+ax1.plot(x,lrd, label='lr',color='violet');
 #ax1.set_ylim(0.,1e-1)
 
 
@@ -345,10 +394,10 @@ legend = ax.legend(loc='lower left', shadow=False,fontsize=10)
 plt.savefig(os.path.join(pfile,'loss.png'))
 plt.show()
 
-######### iou
-
+######### dicecoeff
+del fig
 fig = plt.figure()
-plt.xlim(200,285)
+#plt.xlim(200,285)
 ax = fig.add_subplot(1,1,1)
 ax.set_title('Dice coeff '+reportDir+' as master',fontsize=10)
 ax.plot(x,dice_coefd, label='dice_coef');
@@ -368,6 +417,36 @@ if reportDir1 !='':
 
 ax.plot(x,pic, label='val_dice_coef pic');
 ax.plot(x,pic0, label='val_dice_coef pic max');
+ax1=ax.twinx()
+ax1.plot(x,lrd, label='lr',color='violet');
+
+legend = ax.legend(loc='lower left', shadow=True,fontsize=10)
+plt.savefig(os.path.join(pfile,'dice.png'))
+plt.show()
+
+######### iou
+del fig
+fig = plt.figure()
+#plt.xlim(200,285)
+ax = fig.add_subplot(1,1,1)
+ax.set_title('IOU '+reportDir+' as master',fontsize=10)
+ax.plot(x,my_iou_metricd, label='iou');
+if reportDir1 !='':
+    ax.plot(x,my_iou_metricd1, label='iou1');
+ax.plot(x,val_my_iou_metricd, label='val_iou');
+ax.yaxis.set_label_position("right")
+ax.yaxis.tick_right()
+#if len(lrd)>0:
+#    ax1=ax.twinx()
+#    ax1.plot(x,lrd, label='lr',color='violet');
+#    ax1.set_ylabel('lr', color='violet')
+#    ax1.tick_params('y', colors='violet')
+if reportDir1 !='':
+    ax.plot(x,val_my_iou_metricd1, label='val_iou1');
+
+
+ax.plot(x,piciou, label='val_iou pic');
+ax.plot(x,piciou0, label='val_iou pic max');
 ax1=ax.twinx()
 ax1.plot(x,lrd, label='lr',color='violet');
 
