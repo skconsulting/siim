@@ -58,7 +58,7 @@ random.seed(42)
 #reportDir='merge'
 #reportDir='unetresnet'
 reportDir='UEfficientNet'
-#reportDir='UEfficientNettrial'
+reportDir='UEfficientNettrial'
 
 #reportDir='unetsimple'
 #reportDir='r0nctrial'
@@ -71,19 +71,19 @@ reportDir='UEfficientNet'
 #dirToConsider='wocosine' # for loading model
 #dirToConsider='testLr1' # for loading model
 #dirToConsider='a16merge' # for loading model
-dirToConsider='b' # for loading model
-dirToConsider='reference/b3loss' # for loading model
+dirToConsider='a' # for loading model
+#dirToConsider='reference/b3loss' # for loading model
 
 
-withScore=True# score for submission
-withTrain=False # actual training
-onePred=False
+withScore=False# score for submission
+withTrain=True # actual training
+onePred=True
 lookForLearningRate=False # actual training
 
 
 withPlot= False# plot images during training
 withPlot32= False# plot images and calculates min roi
-withReport=True # calculate f score
+withReport=False # calculate f score
 withEval=False # evaluates as for scoring on validation data
 calparam=False #calculate minroi
 
@@ -123,7 +123,7 @@ num_class=1
 num_bit=1   
 # work wit=h Kfolds
 kfold=10
-startKfold=8 # 0 to start
+startKfold=0 # 0 to start
 splitKfold=True
 
 
@@ -205,6 +205,7 @@ reportDir = args["dir"]
 if reportDir=='UEfficientNettrial':
     modelName='UEfficientNet'
     kfold=3
+    startKfold=0 # 0 to start
     img_rows=256
     img_cols=256
     nb_epoch=4
@@ -212,7 +213,7 @@ if reportDir=='UEfficientNettrial':
     num_bit=3
     learning_rate=1e-3
     d0=0.5
-    batchSize[modelName]=16 # 
+    batchSize[modelName]=6 # 
     nsubSamples=10#in %
 
 if reportDir=='UEfficientNet':
@@ -471,22 +472,28 @@ def getfilenames():
 #    tr = pd.read_csv(RAW_TRAIN_LABELS)
 #getting path of all the train and test images
     file_train=sorted(glob(TRAIN_DCM_DIR+'*/*/*/*.dcm'))
-    test_fns=sorted(glob(TEST_DCM_DIR+'*/*/*/*.dcm'))
+#    test_fns=sorted(glob(TEST_DCM_DIR+'/*.dcm'))
     
     #train_fns = sorted(glob('../input/siim-train-test/siim/dicom-images-train/*/*/*.dcm'))
     #test_fns = sorted(glob('../input/siim-train-test/siim/dicom-images-test/*/*/*.dcm'))
     
     print(len(file_train))
-    print(len(test_fns))
+#    print(len(test_fns))
     pneumothorax=[]
 #df = pd.read_csv(RAW_TRAIN_LABELS, header=None, index_col=0)
     df_full = pd.read_csv(RAW_TRAIN_LABELS, index_col='ImageId')
-    
+#    print(df_full)
+
     for n, _id in tqdm(enumerate(file_train), total=len(file_train)):
         try:
-                if not '-1'  in df_full.loc[_id.split('/')[-1][:-4],' EncodedPixels']:
+#        print(_id.split('/')[-1][:-4])
+##        print(df_full.iloc[0])
+#        print(df_full.loc['1.2.276.0.7230010.3.1.4.8323329.6904.1517875201.850819','EncodedPixels'])
+#        ooo
+#        print(df_full.loc[_id.split('/')[-1][:-4],'EncodedPixels'])
+            if not '-1'  in df_full.loc[_id.split('/')[-1][:-4],'EncodedPixels']:
         #            Y_train[n] = np.zeros((1024, 1024, 1))
-                    pneumothorax.append(_id.split('/')[-1])
+                pneumothorax.append(_id.split('/')[-1])
         except KeyError:
             pass
 
@@ -494,10 +501,9 @@ def getfilenames():
     f=open(todaytrshFile,'a')
     f.write('total number of images: ' +str(len(file_train))+'\n')
     file_with_pneumo = [name for name in file_train if name.split('/')[-1]  in pneumothorax]
-
     print ('number of images with pnemonia:', len(file_with_pneumo))
     f.write('number of images with pnemonia: ' +str(len(file_with_pneumo))+'\n')
-    
+
     file_without_pneumo = [name for name in file_train if name.split('/')[-1] not in pneumothorax]
 
     print ('number of images with no pnemonia:', len(file_without_pneumo))
@@ -677,11 +683,11 @@ def rle2mask0(rle, width, height):
     return mask.reshape(width, height)
 
 def maskfromrle(df_full,f,img_rows,img_cols,rle2m):
-     if type(df_full.loc[f[:-4],' EncodedPixels']) == str:
-            msk = rle2m(df_full.loc[f[:-4],' EncodedPixels'], 1024, 1024)
+     if type(df_full.loc[f[:-4],'EncodedPixels']) == str:
+            msk = rle2m(df_full.loc[f[:-4],'EncodedPixels'], 1024, 1024)
      else:
         msk= np.zeros((1024, 1024),np.uint16)
-        for x in df_full.loc[f[:-4],' EncodedPixels']:                      
+        for x in df_full.loc[f[:-4],'EncodedPixels']:                      
             msk =  np.clip(msk + rle2m(x, 1024, 1024),0,255)
      
     #print('mask',mask.min(),mask.max())
@@ -793,7 +799,7 @@ def image_n_encode(train_images_names,encode_df):
             img = pydicom.read_file(f).pixel_array
             c += 1
             encode = list(encode_df.loc[encode_df['ImageId'] == '.'.join(f.split('/')[-1].split('.')[:-1]),
-                               ' EncodedPixels'].values)
+                               'EncodedPixels'].values)
             
             encode = get_mask(encode,img.shape[1],img.shape[0])
             encode = resize(encode,(img_rows,img_cols))
@@ -1762,7 +1768,9 @@ def onePredf():
 #    train_filenames,valid_filenames=getfilenames()
 
     vf=['1.2.276.0.7230010.3.1.4.8323329.5577.1517875188.867087.dcm','1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
-#    vf=['1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
+    vf=['1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
+    vf=['CR000000.dcm']
+
 
     for filename in vf:
 
@@ -1783,22 +1791,30 @@ def onePredf():
         print(img.shape,img.min(),img.max())
 
         pred = model.predict(img,verbose=1)
+#        print('pred before reshape',pred.min(),pred.max())
         pred=pred[0].reshape(img_rows,img_cols)
+#        print('pred after reshape',pred.min(),pred.max())
 
 #        pred=np.squeeze(pred[0])
 
 #        pred= cv2.resize(pred,(img_rows,img_cols),interpolation=cv2.INTER_NEAREST)  
         print('pred min max',pred.shape,pred.min(),pred.max())
 #        msk=maskfromrle(df_full,imageDest,img_rows,img_cols,rle2mask)
-        if type(df_full.loc[filename[:-4],' EncodedPixels']) == str:
-                msk = rle2mask(df_full.loc[filename[:-4],' EncodedPixels'], 1024, 1024)
-                    
-        else:
-                msk= np.zeros((1024, 1024),np.uint8)
-                for x in df_full.loc[filename[:-4],' EncodedPixels']:                      
-                    msk =  np.clip(msk + rle2mask(x, 1024, 1024),0,255)
-        msk=cv2.resize(msk,(img_rows,img_cols),interpolation=cv2.INTER_NEAREST)  
-        msk=msk.T
+        try:
+            if type(df_full.loc[filename[:-4],'EncodedPixels']) == str:
+                    msk = rle2mask(df_full.loc[filename[:-4],'EncodedPixels'], 1024, 1024)
+                        
+            else:
+                    msk= np.zeros((1024, 1024),np.uint8)
+                    for x in df_full.loc[filename[:-4],'EncodedPixels']:                      
+                        msk =  np.clip(msk + rle2mask(x, 1024, 1024),0,255)
+
+                            
+            msk=cv2.resize(msk,(img_rows,img_cols),interpolation=cv2.INTER_NEAREST)  
+            msk=msk.T
+        except:
+            msk= np.zeros((img_rows, img_cols),np.uint8)
+
 #        plt.imshow(normi(imgt),cmap = 'gray')
 #        plt.show()
 #        plt.imshow(normi(msk))
@@ -1814,8 +1830,11 @@ def onePredf():
             np.putmask(pred_to_aff,pred > thresh,1)
 #            print(pred_to_aff.min(),pred_to_aff.max())
     
+            mkadd1=cv2.addWeighted(normi(imgt),0.2,normi(pred_to_aff),0.8,0)
+            mkadd2=cv2.addWeighted(mkadd1,0.8,normi(msk),0.2,0)
 
-            plt.imshow(pred_to_aff)
+
+            plt.imshow(mkadd2)
             plt.show()
 #            plt.hist(pred_to_aff, bins=100)
 ##        axs[1].hist(pred, bins=n_bins)
@@ -2016,12 +2035,12 @@ def trialaugm():
             filename = filename.split('/')[-1]
 
     
-            if type(df_full.loc[filename[:-4],' EncodedPixels']) == str:
-                    msk = rle2mask(df_full.loc[filename[:-4],' EncodedPixels'], 1024, 1024)
+            if type(df_full.loc[filename[:-4],'EncodedPixels']) == str:
+                    msk = rle2mask(df_full.loc[filename[:-4],'EncodedPixels'], 1024, 1024)
                         
             else:
                     msk= np.zeros((1024, 1024),np.uint8)
-                    for x in df_full.loc[filename[:-4],' EncodedPixels']:                      
+                    for x in df_full.loc[filename[:-4],'EncodedPixels']:                      
                         msk =  np.clip(msk + rle2mask(x, 1024, 1024),0,255)
             msk=cv2.resize(msk,(img_rows,img_cols),interpolation=cv2.INTER_NEAREST)  
             msk=msk.T
@@ -2129,7 +2148,7 @@ def calparamf():
     
     for n, _id in tqdm(enumerate(file_train), total=len(file_train)):
         try:
-                if not '-1'  in df_full.loc[_id.split('/')[-1][:-4],' EncodedPixels']:
+                if not '-1'  in df_full.loc[_id.split('/')[-1][:-4],'EncodedPixels']:
         #            Y_train[n] = np.zeros((1024, 1024, 1))
                     pneumothorax.append(_id.split('/')[-1])
         except KeyError:

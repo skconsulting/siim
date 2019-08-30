@@ -1,0 +1,5 @@
+{"RAW_TRAIN_LABELS": "/home/sylvain/Documents/trial/siim/input/stage_2_train.csv",
+ "TRAIN_DCM_SUB": "/home/sylvain/Documents/trial/siim/input/dicom-images-subsample",
+ "TRAIN_DCM_DIR": "/home/sylvain/Documents/trial/siim/input/dicom-images",
+ "TEST_DCM_DIR":  "/home/sylvain/Documents/trial/siim/input/dicom_test"
+ }
