@@ -701,7 +701,7 @@ def convolution_block(x, filters, size, strides=(1,1), padding='same', activatio
         x = BatchActivate(x)
     return x
 
-def residual_block(blockInput, num_filters=16, batch_activate = True,k=(3,3)):
+def residual_block(blockInput, num_filters=16, batch_activate = False,k=(3,3)):
     x = BatchActivate(blockInput)
     x = convolution_block(x, num_filters, k )
     x = convolution_block(x, num_filters, k, activation=False)
@@ -715,6 +715,7 @@ def build_model_unetresnet(input_layer, start_neurons, num_class_, DropoutRatio 
 #    ks1=(5,5)
 #    ks2=(7,7)
     # 101 -> 50
+
     conv1 = keras.layers.Conv2D(start_neurons * 1, ks0, activation=None, padding="same")(input_layer)
     conv1 = residual_block(conv1,start_neurons * 1,k=ks0)
     conv1 = residual_block(conv1,start_neurons * 1, True,k=ks0)
@@ -795,8 +796,8 @@ def unetresnet(num_class_,INP_SHAPE_,dim_org_,CONCAT_AXIS_,d0):
     print ('this is model unetresnet with d0: ',d0)
     input_layer = keras.Input(INP_SHAPE_)
 #    output_layer = build_model(input_layer, 32, num_class_,0.3)
-#    output_layer = build_model_unetresnet(input_layer,start neuron 32 32, num_class_,d0)
-    output_layer = build_model_unetresnet(input_layer, 16, num_class_,d0)
+    output_layer = build_model_unetresnet(input_layer, 32, num_class_,d0)
+#    output_layer = build_model_unetresnet(input_layer, 16, num_class_,d0)
 
     
     model = keras.Model(input_layer, output_layer)
@@ -1068,12 +1069,12 @@ if __name__ == "__main__":
 #   modelNamei='unetsimple'
 #   modelNamei='ResUNet'
 #   modelNamei='UResNet34'
-   modelNamei='UEfficientNet'
+#   modelNamei='UEfficientNet'
    weights=[0.1, 0.9]
 #   weights = np.array([0.1,2])
    num_classi=1
    weightedl=False
-   num_biti=3
+   num_biti=1
    img_rowsi=128
    img_colsi=128
    ns=0

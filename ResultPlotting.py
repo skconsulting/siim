@@ -22,14 +22,15 @@ import matplotlib.pyplot as plt
 #reportDir='unetphoe/new'
 #reportDir='unetresnet/wocosine'
 #reportDir='unetresnetrial/a'
-reportDir1='unetresnet/i' #
-reportDir='unetresnet/j' #with zero
+#reportDir1='unetresnet/i' #
+reportDir='unetresnet/a' #with zero
+dirToConsider='UEfficientNet/reference/b8loss' # for loading model
 
-reportDir='r0ncD0/a/2'
-reportDir1='r0ncD0/a/2'
+#reportDir='r0ncD0/a/2'
+#reportDir1='r0ncD0/a/2'
 
-reportDir='unetresnet/a16/0' # master will give max epoch
-reportDir1='unetresnet/i' # 
+#reportDir='unetresnet/a16/0' # master will give max epoch
+#reportDir1='unetresnet/i' # 
 #reportDir='UResNet34/a/3' # 
 reportDir1='' #
 #reportDir1='UEfficientNet/a/1' 
@@ -37,8 +38,11 @@ reportDir1='' #
 #reportDir1='UResNet34trial/d/1' 
 #reportDir1='unetresnetrial/b/0' 
 #reportDir='UEfficientNettrial/b' 
-reportDir='UEfficientNet/b/9' 
+#reportDir='UEfficientNet/c/3' 
+#reportDir1='UEfficientNet/c/3' 
 
+
+#reportDir='unetresnet/j' #with zero
 
 
 
@@ -47,6 +51,16 @@ cwd=os.getcwd()
 
 #train directory: trainset/setname/weights
 (cwdtop,tail)=os.path.split(cwd)
+pdir=os.path.join(cwdtop,reportDir)
+print(pdir)
+
+ldir=[ name for name in os.listdir(pdir) if os.path.isdir(os.path.join(pdir, name)) ]
+
+#        print(os.path.join(dirname, filename))
+nbSplit=len(ldir)-1
+print(nbSplit)
+if nbSplit>0:reportDir=os.path.join(cwdtop,reportDir,str(nbSplit))
+
 #p1='trainset'
 #p2='set1' #extensioon for path for data for training
 #p3='report'
@@ -320,11 +334,6 @@ fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
 ax.set_title('Accuracy '+reportDir+' as master',fontsize=10)
 ax.set_xlabel('# Epochs')
-#ax.set_ylabel('value')
-#ax.yaxis.tick_right()
-#ax.yaxis.set_ticks_position('both')
-
-
 
 #plt.ylim(0.5,1.0)
 #plt.ylim(0.85,0.96)
@@ -381,13 +390,14 @@ if reportDir1 !='':
 
 #print(len(x[limb:limbmax]))
 #print(len(picloss[limb:limbmax]))
-ax.plot(x[limb:limbmax],picloss[limb:limbmax], label='val_loss pic');
-ax.plot(x[limb:limbmax],picloss0[limb:limbmax], label='val_loss pic min');
+ax.plot(x[limb:limbmax],picloss[limb:limbmax], label='val_loss pic',c='yellow');
+ax.plot(x[limb:limbmax],picloss0[limb:limbmax], label='val_loss pic min',c='orange');
 ax1=ax.twinx()
-ax1.plot(x,lrd, label='lr',color='violet');
+try:
+    ax1.plot(x,lrd, label='lr',color='violet')
+except:
+        pass
 #ax1.set_ylim(0.,1e-1)
-
-
 
 
 legend = ax.legend(loc='lower left', shadow=False,fontsize=10)
@@ -415,42 +425,45 @@ if reportDir1 !='':
     ax.plot(x,val_dice_coefd1, label='val_dice_coef1');
 
 
-ax.plot(x,pic, label='val_dice_coef pic');
-ax.plot(x,pic0, label='val_dice_coef pic max');
+ax.plot(x,pic, label='val_dice_coef pic',c='yellow');
+ax.plot(x,pic0, label='val_dice_coef pic max',c='orange');
 ax1=ax.twinx()
-ax1.plot(x,lrd, label='lr',color='violet');
+try: ax1.plot(x,lrd, label='lr',color='violet')
+except:pass
 
 legend = ax.legend(loc='lower left', shadow=True,fontsize=10)
 plt.savefig(os.path.join(pfile,'dice.png'))
 plt.show()
-
-######### iou
 del fig
-fig = plt.figure()
-#plt.xlim(200,285)
-ax = fig.add_subplot(1,1,1)
-ax.set_title('IOU '+reportDir+' as master',fontsize=10)
-ax.plot(x,my_iou_metricd, label='iou');
-if reportDir1 !='':
-    ax.plot(x,my_iou_metricd1, label='iou1');
-ax.plot(x,val_my_iou_metricd, label='val_iou');
-ax.yaxis.set_label_position("right")
-ax.yaxis.tick_right()
-#if len(lrd)>0:
-#    ax1=ax.twinx()
-#    ax1.plot(x,lrd, label='lr',color='violet');
-#    ax1.set_ylabel('lr', color='violet')
-#    ax1.tick_params('y', colors='violet')
-if reportDir1 !='':
-    ax.plot(x,val_my_iou_metricd1, label='val_iou1');
-
-
-ax.plot(x,piciou, label='val_iou pic');
-ax.plot(x,piciou0, label='val_iou pic max');
-ax1=ax.twinx()
-ax1.plot(x,lrd, label='lr',color='violet');
-
-legend = ax.legend(loc='lower left', shadow=True,fontsize=10)
-plt.savefig(os.path.join(pfile,'iou.png'))
-plt.show()
+######### iou
+try:
+    fig = plt.figure()
+    #plt.xlim(200,285)
+    ax = fig.add_subplot(1,1,1)
+    ax.set_title('IOU '+reportDir+' as master',fontsize=10)
+    ax.plot(x,my_iou_metricd, label='iou');
+    if reportDir1 !='':
+        ax.plot(x,my_iou_metricd1, label='iou1');
+    ax.plot(x,val_my_iou_metricd, label='val_iou');
+    ax.yaxis.set_label_position("right")
+    ax.yaxis.tick_right()
+    #if len(lrd)>0:
+    #    ax1=ax.twinx()
+    #    ax1.plot(x,lrd, label='lr',color='violet');
+    #    ax1.set_ylabel('lr', color='violet')
+    #    ax1.tick_params('y', colors='violet')
+    if reportDir1 !='':
+        ax.plot(x,val_my_iou_metricd1, label='val_iou1');
+    
+    
+    ax.plot(x,piciou, label='val_iou pic',c='yellow');
+    ax.plot(x,piciou0, label='val_iou pic max',c='orange');
+    ax1=ax.twinx()
+    try: ax1.plot(x,lrd, label='lr',color='violet')
+    except: pass
+    
+    legend = ax.legend(loc='lower left', shadow=True,fontsize=10)
+    plt.savefig(os.path.join(pfile,'iou.png'))
+    plt.show()
+except:pass
 

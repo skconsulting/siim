@@ -6,13 +6,13 @@
 # ### needs correct <file>.csv file
 
 """
-import math
+#import math
 import numpy as np
 import csv
 import os
-import sys
+#import sys
 
-nbSplit=10
+#nbSplit=4
 max_iou=0
 max_iou_i=1000
 max_dice_coef=0
@@ -32,12 +32,12 @@ import matplotlib.pyplot as plt
 #reportDir='unetphoe/new'
 #reportDir='unetresnet/wocosine'
 #reportDir='unetresnetrial/a'
-reportDir='unetresnet/k' #
+reportDir='unetresnet/a16' #
 #reportDir='UResNet34/a' #
 #reportDir='UResNet34trial/a' #
 
 
-reportDir='UEfficientNet/b'
+#reportDir='UEfficientNet/c'
 
 
 
@@ -46,6 +46,12 @@ cwd=os.getcwd()
 
 #train directory: trainset/setname/weights
 (cwdtop,tail)=os.path.split(cwd)
+pdir=os.path.join(cwdtop,reportDir)
+
+ldir=[ name for name in os.listdir(pdir) if os.path.isdir(os.path.join(pdir, name)) ]
+
+#        print(os.path.join(dirname, filename))
+nbSplit=len(ldir)
 #p1='trainset'
 #p2='set1' #extensioon for path for data for training
 #p3='report'
@@ -156,6 +162,7 @@ def getData(nS):
 #    print ('-----')
 #    print ('maximum maximorum for dice_coef',reportDir,nS)
     print ('max val dice_coef starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[0])
+    ndice.append(sorted(val_l[limb:],reverse=Reverse)[0])
     if sorted(val_l[limb:],reverse=Reverse)[0]>max_dice_coef:
         max_dice_coef=sorted(val_l[limb:],reverse=Reverse)[0]
         max_dice_coef_i=nS
@@ -173,25 +180,29 @@ def getData(nS):
 #    print ('minimum minimorum for val loss')
     print ('min val loss starting from epoch:',str(limb),sorted(val_l[limb:],reverse=Reverse)[0])
     print ('epoch for min:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
+    nvallos.append(sorted(val_l[limb:],reverse=Reverse)[0])
+
     if sorted(val_l[limb:],reverse=Reverse)[0]<min_val_loss:
         min_val_loss=sorted(val_l[limb:],reverse=Reverse)[0]
         min_val_loss_i=nS
         epoch_for_min_val_loss=val_l.index(sorted(val_l[limb:],reverse=Reverse)[0])
+    nums.append(str(ns))
 
-    print ('--val IOU---',reportDir,nS)
-    val_l=list(val_my_iou_metricd)
-    Reverse=True
- 
-    #    try:
-    print ('maximum maximorum for iou from rpoch: ',str(limb),sorted(val_l[limb:],reverse=Reverse)[0])
-    if sorted(val_l[limb:],reverse=Reverse)[0]>max_iou:
-        max_iou=sorted(val_l[limb:],reverse=Reverse)[0]
-        max_iou_i=nS
-        epoch_for_max_iou=val_l.index(sorted(val_l[limb:],reverse=Reverse)[0])
-        
-    print ('epoch for max:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
-    print('------------')
-#    
+    try:
+        print ('--val IOU---',reportDir,nS)
+        val_l=list(val_my_iou_metricd)
+        Reverse=True
+     
+    
+        print ('maximum maximorum for iou from rpoch: ',str(limb),sorted(val_l[limb:],reverse=Reverse)[0])
+        if sorted(val_l[limb:],reverse=Reverse)[0]>max_iou:
+            max_iou=sorted(val_l[limb:],reverse=Reverse)[0]
+            max_iou_i=nS
+            epoch_for_max_iou=val_l.index(sorted(val_l[limb:],reverse=Reverse)[0])
+        print ('epoch for max:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
+        print('------------')
+    except:
+        pass
 #    print ('epoch for min:',val_l.index(sorted(val_l[limb:],reverse=Reverse)[0]))
 #    maxdicecoef=sorted(val_l[limb:],reverse=Reverse)[i]
 ##            print(maxdicecoef)
@@ -205,14 +216,42 @@ def getData(nS):
 #    print ('min val loss for max min iou',val_lossd[val_l.index(sorted(val_l[limb:],reverse=Reverse)[i])])
 
     #            pass
-    return(categorical_accuracy , val_accuracy, train_loss , lrd,  
+    return(ndice,nvallos,nums,categorical_accuracy , val_accuracy, train_loss , lrd,  
            train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss ,picloss0,pic,pic0)
 #############################################################################################################################
-
+nums=[]
+nvallos=[]
+ndice=[]
 for ns in range(nbSplit):
-    categorical_accuracy , val_accuracy, train_loss , lrd,  train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss,picloss0,pic,pic0=getData(str(ns))
+    ndice,nvallos,ns,categorical_accuracy , val_accuracy, train_loss , lrd,  train_loss, val_lossd , dice_coefd, val_dice_coefd, x ,pfile,picloss,picloss0,pic,pic0=getData(str(ns))
 print('number split max dice_coef: ',max_dice_coef_i,' max dice coef: ', max_dice_coef, 'epoch: ',epoch_for_max_dice_coef)
 print('number split min val_loss: ',min_val_loss_i,' min val loss: ', min_val_loss,' epoch: ',epoch_for_min_val_loss)
 print('number split max iou: ',max_iou_i,' max iou ',max_iou,' epoch: ',epoch_for_max_iou)
 
+fig = plt.figure()
+ax = fig.add_subplot(1,1,1)
+ax.set_title('Val los and val dice coef',fontsize=10)
+ax.set_xlabel('# Number split')
+ax.tick_params('y', colors='red')
+#ax.set_ylabel('value')
+#ax.yaxis.tick_right()
+#ax.yaxis.set_ticks_position('both')
 
+
+
+#plt.ylim(0.5,1.0)
+#plt.ylim(0.85,0.96)
+ax.plot(nums,nvallos, label='val loss',c='red');
+ax1=ax.twinx()
+#    ax1.yaxis.set_label_position("left")
+#    ax1.yaxis.tick_left()
+ax1.set_ylabel('dice coeff', color='blue')
+ax1.tick_params('y', colors='blue')
+ax1.plot(ns,ndice, label='val dice coef',c='blue');
+
+legend = ax1.legend(loc='center right', shadow=True,fontsize=10)
+legend = ax.legend(loc='center left', shadow=True,fontsize=10)
+
+plt.savefig(os.path.join(pfile,'acc.png'))
+plt.show()
+del fig

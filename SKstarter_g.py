@@ -58,12 +58,12 @@ random.seed(42)
 #reportDir='merge'
 #reportDir='unetresnet'
 reportDir='UEfficientNet'
-reportDir='UEfficientNettrial'
+#reportDir='UEfficientNettrial'
 
 #reportDir='unetsimple'
 #reportDir='r0nctrial'
 #reportDir='unetresnet'
-#reportDir='UResNet34'
+#reportDir='unetresnetrial'
 #reportDir='UResNet34trial'
 
 #dirToConsider='r0ncD0_1024_modif' # for loading model
@@ -71,29 +71,31 @@ reportDir='UEfficientNettrial'
 #dirToConsider='wocosine' # for loading model
 #dirToConsider='testLr1' # for loading model
 #dirToConsider='a16merge' # for loading model
-dirToConsider='a' # for loading model
-#dirToConsider='reference/b3loss' # for loading model
+#dirToConsider='j' # for loading model
+dirToConsider='reference/b8loss' # for loading model
+#dirToConsider='i' # for loading model
 
 
-withScore=False# score for submission
-withTrain=True # actual training
-onePred=True
+mergeDir=False
+withScore=True# score for submission
+withTrain=False # actual training
+onePred=False
 lookForLearningRate=False # actual training
 
 
 withPlot= False# plot images during training
 withPlot32= False# plot images and calculates min roi
-withReport=False # calculate f score
+withReport=True # calculate f score
 withEval=False # evaluates as for scoring on validation data
 calparam=False #calculate minroi
 
-withScorePixel=True # calculate f score by pixel also
+withScorePixel=False # calculate f score by pixel also
 withRedoRoi=False # evaluates as for scoring on validation data
 withMRoi=False
 withmaskrcnn=False # use maskrcnn results for score True in merge
 withrien=False # filter result
 
-usePreviousWeight=False
+usePreviousWeight=True
 useIOU=False
 
 zerocenter=True
@@ -101,6 +103,7 @@ zerocenter=True
 #histAdapt='clahe' # use history adapt for pre -treatment
 histAdapt='histAdapt' # use history adapt for pre -treatment
 
+thForScore=0.7
 
 withWeight=False # weighted class
 weights=[0.1, 0.9]
@@ -129,7 +132,7 @@ splitKfold=True
 
 subreport=dirToConsider
 minRoiForScore=0
-thForScore=0.5
+
 #threshold_best=0.5
 prob_thresholds=[0.1,0.2,0.3,0.4,0.5,0.6,0.7]
 #prob_thresholds=[0.1,0.5, ]
@@ -142,6 +145,8 @@ MAX_LR = 5e-3
 STEP_SIZE = 8
 CLR_METHOD = "triangular2"
 #######################################################################
+if     mergeDir:
+    splitKfold=True
 if lookForLearningRate==True:
     withScore=False # score for submission
     withPlot= False# plot images and calculates min roi
@@ -168,7 +173,8 @@ if withTrain or calparam:
     
 if not withTrain:
     usePreviousWeight=True
-    kfold=0
+    if not    mergeDir:
+        kfold=0
 
 
 if  withScore:
@@ -218,10 +224,11 @@ if reportDir=='UEfficientNettrial':
 
 if reportDir=='UEfficientNet':
     modelName='UEfficientNet'
-    mergeDir=False
     num_bit=3
     learning_rate=1e-3
     d0=0.5
+    d0Dict[modelName]=d0
+
     batchSize[modelName]=3 # 
 
     
@@ -234,6 +241,7 @@ if reportDir=='unetphoe':
 
 if reportDir=='unetresnet':
     modelName='unetresnet'
+    num_bit=1
     mergeDir=False
     learning_rate=minLR
     d0=0.5
@@ -263,6 +271,8 @@ if reportDir=='unetsimple':
 
 if reportDir=='unetresnetrial':
     modelName='unetresnet'
+    num_bit=1
+
     random.seed(42)
     kfold=3
     splitKfold= True
@@ -1229,13 +1239,13 @@ def withTrainf():
             print('start with folder:',i, 'on: ',kfold-1)
             if splitKfold:
                 if mergeDir:
-                        model,model2,model3=loadModelGlobal(i)
+                        model=loadModelGlobal(i)
                 else:
                         model=loadModelGlobal(i)
             else:
                 if i==0:
                     if mergeDir:
-                            model,model2,model3=loadModelGlobal(i)
+                            model=loadModelGlobal(i)
                     else:
                             model=loadModelGlobal(i)
             len_train=len(train_filenames[i])  
@@ -1249,7 +1259,7 @@ def withTrainf():
             
     else:
             if mergeDir:
-                    model,model2,model3=loadModelGlobal(0)
+                    model=loadModelGlobal(0)
             else:
                     model=loadModelGlobal(0)
             len_train=len(train_filenames)
@@ -1347,24 +1357,38 @@ def withReportf():
     print ('calculate param for optimum report -------------------')
     random.seed(42)
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
-    train_filenames=train_filenames[0:50]
-    print ('calculate report f-score on ',len(train_filenames),' validation data')
-    f=open(todaytrshFile,'a')
-    f.write('calculate report f-score on: '+str(len(train_filenames))+' validation data\n')
-    f.write('----------------------------------------------------------------\n')
-    f.close()
-    
-    lvfn=len(train_filenames)  
-    print(lvfn)
-    try:
-        basize= 10*min(batchSize[modelName],batchSize[modelName2],batchSize[modelName3])
-    except:
-        basize= 10*batchSize[modelName]
-    valid_gen = generator(train_filenames,df_full, pneumothorax, 
+    basize= 10*batchSize[modelName]
+#    train_filenames=train_filenames[0:50]
+    if kfold==0:
+        print ('calculate report f-score on ',len(train_filenames),' validation data')
+        f=open(todaytrshFile,'a')
+        f.write('calculate report f-score on: '+str(len(train_filenames))+' validation data\n')
+        f.write('----------------------------------------------------------------\n')
+        f.close()
+        
+        lvfn=len(train_filenames)  
+        valid_gen = generator(train_filenames,df_full, pneumothorax, 
                               batch_size=basize, image_size=(img_rows,img_cols), 
 #                              n_classes=2,n_channels=num_bit , 
                               shuffle=False, augment=False, predict=False)
 #    list_IDs, df_full, pneumothorax=None, batch_size=32, 
+    else:
+        print ('calculate report f-score on ',len(train_filenames[0]),' validation data')
+        f=open(todaytrshFile,'a')
+        f.write('calculate report f-score on: '+str(len(train_filenames[0]))+' validation data\n')
+        f.write('----------------------------------------------------------------\n')
+        f.close()
+        
+        lvfn=len(train_filenames[0])  
+        valid_gen = generator(train_filenames[0],df_full, pneumothorax, 
+                              batch_size=basize, image_size=(img_rows,img_cols), 
+#                              n_classes=2,n_channels=num_bit , 
+                              shuffle=False, augment=False, predict=False)
+            
+    print('len file name: ',lvfn)
+
+    
+   
 #                 image_size=(256,256), n_classes=2,n_channels=1 ,shuffle=True, augment=False, predict=False):
    
     roiGoodacc =0
@@ -1396,13 +1420,19 @@ def withReportf():
     for imgs, msks in valid_gen:
         indb+=1
 
-        preds = model.predict(imgs,batch_size=10*batchSize[modelName],verbose=1)
-        if mergeDir:          
-            preds2 = model2.predict(imgs,batch_size=10*batchSize[modelName2],verbose=1)     
-            preds3 = model3.predict(imgs,batch_size=10*batchSize[modelName3],verbose=1)    
-            preds=(preds+preds2+preds3)/3
-            preds2=[]
-            preds3=[]
+        if mergeDir:    
+            predswip={}
+            for kdir in range(kfold):
+                print('predict ', kdir)
+                predswip[kdir] = model[kdir].predict(imgs,verbose=1,batch_size=10*batchSize[modelName])    
+            preds = predswip[0]
+            for kdir in range(1,kfold):
+                preds+=predswip[kdir]
+            del predswip
+            preds=preds/kfold
+        else:
+            preds = model.predict(imgs,batch_size=10*batchSize[modelName],verbose=1)
+
 
         if indb==0:
             predTot=preds.copy()
@@ -1670,35 +1700,29 @@ def loadModelGlobal(kf):
     f.write('load model name: ' +modelName+'\n')
     print('load model name: ' +modelName)
     print ('----')
+    if useIOU:
+        str2ch='iou'
+    else:
+        str2ch='loss'
     if mergeDir:
-        print  ('load',modelName)
+        print  ('load',modelName, 'for', kfold ,' folder')
+        modeldict={}
         f.write('load model name: ' +modelName+'\n')
-        listmodel=[name for name in os.listdir(os.path.join(cwd,repDir[modelName])) if name.find('.hdf5')>0] 
-        if len(listmodel)>0:
-            namelastc=load_weights_set(os.path.join(cwd,repDir[modelName]))  
-            f.write('load weight: ' +namelastc+'\n')
-        model=get_model(modelName,num_class,num_bit,img_rows,img_cols,True,weights,withWeight,namelastc,learning_rate,True,d0Dict[modelName])
-        print ('----')
+        for kdir in range(kf):
+            dirwip=os.path.join(reportDir,str(kdir))
+            print  ('load',modelName, 'in :',dirwip)
+
+            listmodel=[name for name in os.listdir(dirwip) if name.find('.hdf5') and name.find(str2ch)>0]
+            if len(listmodel)>0:
+                namelastc=load_weights_set(dirwip,str2ch)  
+                f.write('load weight: ' +namelastc+'\n')
+                print  ('load weight: ' +namelastc+'\n')
+
+            modeldict[kdir]=get_model(modelName,num_class,num_bit,img_rows,img_cols,True,weights,withWeight,namelastc,learning_rate,True,d0Dict[modelName])
+            print ('----')
         
-        print ( 'load',modelName2)
-        f.write('load model name: ' +modelName2+'\n')
-        listmodel=[name for name in os.listdir(os.path.join(cwd,repDir[modelName2])) if name.find('.hdf5')>0] 
-        if len(listmodel)>0:
-            namelastc=load_weights_set(os.path.join(cwd,repDir[modelName2]))  
-            f.write('load weight: ' +namelastc+'\n')
-        model2=get_model(modelName2,num_class,num_bit,img_rows,img_cols,True,weights,withWeight,namelastc,learning_rate,True,d0Dict[modelName2])
-        print ( '----')
-        
-        print  ('load',modelName3)
-        f.write('load model name: ' +modelName3+'\n')
-        listmodel=[name for name in os.listdir(os.path.join(cwd,repDir[modelName3])) if name.find('.hdf5')>0] 
-        if len(listmodel)>0:
-            namelastc=load_weights_set(os.path.join(cwd,repDir[modelName3]))  
-            f.write('load weight: ' +namelastc+'\n') 
-        model3=get_model(modelName3,num_class,num_bit,img_rows,img_rows,True,weights,withWeight,namelastc,learning_rate,True,d0Dict[modelName3])
-        print ('----')
         f.close()
-        return model,model2,model3
+        return modeldict
     else:
         print ('load',modelName)
         namelastc='NAN'
@@ -1711,15 +1735,16 @@ def loadModelGlobal(kf):
                     pathToWeight=os.path.join(reportDir,str(kf))
             else:
                 pathToWeight=os.path.join(reportDir)
-            if useIOU:
-                str2ch='iou'
-            else:
-                str2ch='loss'
+            str2ch='hd'
             listmodel=[name for name in os.listdir(pathToWeight) if name.find('.hdf5')>0 and name.find(str2ch)>0] 
+#            print('listmodel',listmodel)
+      
+
             if len(listmodel)>0:
-                namelastc=load_weights_set(pathToWeight)  
+                namelastc=load_weights_set(pathToWeight,str2ch)  
                 f.write('load weight: ' +namelastc+'\n')
                 print('load weight: ' +namelastc)
+
             else:
                     print ('no weight at ',pathToWeight)
                     f.write('no weight at: '+pathToWeight+'\n')
@@ -1768,8 +1793,8 @@ def onePredf():
 #    train_filenames,valid_filenames=getfilenames()
 
     vf=['1.2.276.0.7230010.3.1.4.8323329.5577.1517875188.867087.dcm','1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
-    vf=['1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
-    vf=['CR000000.dcm']
+#    vf=['1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
+#    vf=['CR000000.dcm']
 
 
     for filename in vf:
@@ -1790,7 +1815,19 @@ def onePredf():
             img = np.repeat(img,3,-1)
         print(img.shape,img.min(),img.max())
 
-        pred = model.predict(img,verbose=1)
+        if mergeDir:
+            predswip={}
+            for kdir in range(kfold):
+                print('predict ', kdir)
+                predswip[kdir] = model[kdir].predict(img,verbose=1)    
+            pred = predswip[0]
+            for kdir in range(1,kfold):
+                pred+=predswip[kdir]
+            del predswip
+            pred=pred/kfold
+#            print(pred.min(),pred.max())
+        else:
+                pred = model.predict(img,verbose=1)
 #        print('pred before reshape',pred.min(),pred.max())
         pred=pred[0].reshape(img_rows,img_cols)
 #        print('pred after reshape',pred.min(),pred.max())
@@ -1958,18 +1995,41 @@ def withScoref1():
     
     
 def withScoref():
+    print('---------------------------------')
     print('start fscore for: ',thForScore)
-    test_fns=sorted(glob(TEST_DCM_DIR+'*/*/*/*.dcm'))
+    print('---------------------------------')
+
+
+    test_fns=sorted(glob(TEST_DCM_DIR+'/*.dcm'))
     lvfn=len(test_fns)
+    f=open(todaytrshFile,'a')
+    f.write('calculate report f-score on: '+str(lvfn)+' score data with th: '+str(thForScore)+'\n')
+    f.write('----------------------------------------------------------------\n')
+    f.close()
     train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
-    batch_size=32
+    del train_filenames,valid_filenames
+    batch_size=10
     valid_gen = generator(test_fns,df_full, pneumothorax, 
                               batch_size=batch_size, image_size=(img_rows,img_cols), 
                               shuffle=False, augment=False, predict=True)
+    
     indb=-1
     for imgs, fnames in valid_gen:
         indb+=1
-        preds = model.predict(imgs,batch_size=batch_size,verbose=1)
+        if mergeDir:
+            predswip={}
+            for kdir in range(kfold):
+                print('predict ', kdir)
+                predswip[kdir] = model[kdir].predict(imgs,batch_size=batch_size,verbose=1)    
+            preds = predswip[0]
+            for kdir in range(1,kfold):
+                preds+=predswip[kdir]
+            del predswip
+            preds=preds/kfold
+#            print(pred.min(),pred.max())
+        else:                
+        
+            preds = model.predict(imgs,batch_size=batch_size,verbose=1)
         if indb==0:
             predTot=preds.copy()
             maskTot=fnames.copy()
@@ -1980,7 +2040,8 @@ def withScoref():
             predTot=predTot[:lvfn]
             maskTot=maskTot[:lvfn]
             break
-
+    del pneumothorax,df_full
+    print(predTot.shape,predTot.min(),predTot.max())
     max_images = 64
     grid_width = 16
     grid_height = int(max_images / grid_width)
@@ -2005,8 +2066,98 @@ def withScoref():
         im = cv2.resize(p,(1024,1024))
         im = im > thForScore
 #         zero out the smaller regions.
-        if im.sum()<1024*2:
-            im[:] = 0
+#        if im.sum()<1024*2:
+#            im[:] = 0
+        im = (im.T*255).astype(np.uint8)  
+        rles.append(mask2rle(im, 1024, 1024))
+        i += 1
+        if i<max_img:
+            plt.subplot(1,max_img,i)
+            plt.imshow(im)
+            plt.axis('off')
+    ids = [o.split('/')[-1][:-4] for o in maskTot]
+    sub_df = pd.DataFrame({'ImageId': ids, 'EncodedPixels': rles})
+    sub_df.loc[sub_df.EncodedPixels=='', 'EncodedPixels'] = '-1'
+    print(sub_df.head())
+    fileResult=os.path.join(reportDir,str(today)+'_submission.csv')
+    sub_df.to_csv(fileResult, index=False)
+        
+def withScoref2():
+    print('---------------------------------')
+    print('start fscore for: ',thForScore)
+    print('---------------------------------')
+
+
+    test_fns=sorted(glob(TEST_DCM_DIR+'/*.dcm'))
+    lvfn=len(test_fns)
+    f=open(todaytrshFile,'a')
+    f.write('calculate report f-score on: '+str(lvfn)+' score data with th: '+str(thForScore)+'\n')
+    f.write('----------------------------------------------------------------\n')
+    f.close()
+    train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
+    del train_filenames,valid_filenames
+    batch_size=10
+    valid_gen = generator(test_fns,df_full, pneumothorax, 
+                              batch_size=batch_size, image_size=(img_rows,img_cols), 
+                              shuffle=False, augment=False, predict=True)
+    
+    indb=-1
+    for imgs, fnames in valid_gen:
+        indb+=1
+        if mergeDir:
+            predswip={}
+            for kdir in range(kfold):
+                print('predict ', kdir)
+                predswip[kdir] = model[kdir].predict(imgs,batch_size=batch_size,verbose=1)    
+            preds = predswip[0]
+            for kdir in range(1,kfold):
+                preds+=predswip[kdir]
+            del predswip
+            preds=preds/kfold
+#            print(pred.min(),pred.max())
+        else:                
+        
+            preds = model.predict(imgs,batch_size=batch_size,verbose=1)
+        if indb==0:
+            predTot=preds.copy()
+            maskTot=fnames.copy()
+        else:
+            predTot=np.concatenate((predTot,preds),axis=0)
+            maskTot=maskTot+fnames
+        if predTot.shape[0]>=lvfn:
+            predTot=predTot[:lvfn]
+            maskTot=maskTot[:lvfn]
+            break
+        
+        
+    del pneumothorax,df_full
+    print(predTot.shape,predTot.min(),predTot.max())
+    max_images = 64
+    grid_width = 16
+    grid_height = int(max_images / grid_width)
+    fig, axs = plt.subplots(grid_height, grid_width, figsize=(grid_width, grid_height))
+    # for i, idx in enumerate(index_val[:max_images]):
+    for i, idx in enumerate(test_fns[:max_images]):
+        img ,correct,MIN_BOUND,MAX_BOUND,imgShape=geneTable(idx,img_rows,img_cols,dirWriteBmp='',
+                                                writeBmp=False,resize=True,histAdapt=histAdapt)
+        pred = predTot[i].squeeze()
+        ax = axs[int(i / grid_width), i % grid_width]
+        ax.imshow(img, cmap="Greys")
+        ax.imshow(np.array(np.round(pred > thForScore), dtype=np.float32), alpha=0.5, cmap="Reds")
+        ax.axis('off')
+    
+    
+    
+    rles = []
+    i,max_img = 1,10
+    plt.figure(figsize=(16,4))
+    for p in tqdm(predTot):
+        p = p.squeeze()
+        im = cv2.resize(p,(1024,1024))
+        im = im > thForScore
+#         zero out the smaller regions.
+#        if im.sum()<1024*2:
+#            im[:] = 0
         im = (im.T*255).astype(np.uint8)  
         rles.append(mask2rle(im, 1024, 1024))
         i += 1
@@ -2022,6 +2173,8 @@ def withScoref():
     sub_df.to_csv(fileResult, index=False)
         
     
+
+
 def trialaugm():
         train_filenames,valid_filenames,pneumothorax,df_full=getfilenames()
         for filename in train_filenames[0:5]:
@@ -2181,10 +2334,10 @@ if __name__ == '__main__':
 #    ooo
     if not withTrain and not calparam:
         if mergeDir:
-                model,model2,model3=loadModelGlobal(kfold)
+                model=loadModelGlobal(kfold)
         else:
                 model=loadModelGlobal(kfold)
-   
+
     if lookForLearningRate:
         lookForLearningRatef()
         
