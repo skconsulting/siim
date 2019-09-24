@@ -701,7 +701,7 @@ def convolution_block(x, filters, size, strides=(1,1), padding='same', activatio
         x = BatchActivate(x)
     return x
 
-def residual_block(blockInput, num_filters=16, batch_activate = False,k=(3,3)):
+def residual_block(blockInput, num_filters=16, batch_activate = True,k=(3,3)):
     x = BatchActivate(blockInput)
     x = convolution_block(x, num_filters, k )
     x = convolution_block(x, num_filters, k, activation=False)
@@ -796,8 +796,8 @@ def unetresnet(num_class_,INP_SHAPE_,dim_org_,CONCAT_AXIS_,d0):
     print ('this is model unetresnet with d0: ',d0)
     input_layer = keras.Input(INP_SHAPE_)
 #    output_layer = build_model(input_layer, 32, num_class_,0.3)
-    output_layer = build_model_unetresnet(input_layer, 32, num_class_,d0)
-#    output_layer = build_model_unetresnet(input_layer, 16, num_class_,d0)
+#    output_layer = build_model_unetresnet(input_layer, 32, num_class_,d0)
+    output_layer = build_model_unetresnet(input_layer, 16, num_class_,d0)
 
     
     model = keras.Model(input_layer, output_layer)

@@ -124,9 +124,9 @@ def formatData(X,y,numclass,num_bit_):
     return  x_tab, y_cat
 
 
-def load_weights_set(pickle_dir_train):
+def load_weights_set(pickle_dir_train,str2ch):
     """ load last weights"""
-    listmodel=[name for name in os.listdir(pickle_dir_train) if name.find('.hdf5')>0]
+    listmodel=[name for name in os.listdir(pickle_dir_train) if name.find('.hdf5')>0 and name.find(str2ch)>0 ]
 #    print 'load_model',pickle_dir_train
     ordlist=[]
     for name in listmodel:

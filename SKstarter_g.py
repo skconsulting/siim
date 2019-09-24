@@ -62,7 +62,7 @@ reportDir='UEfficientNet'
 
 #reportDir='unetsimple'
 #reportDir='r0nctrial'
-#reportDir='unetresnet'
+reportDir='unetresnet'
 #reportDir='unetresnetrial'
 #reportDir='UResNet34trial'
 
@@ -71,21 +71,21 @@ reportDir='UEfficientNet'
 #dirToConsider='wocosine' # for loading model
 #dirToConsider='testLr1' # for loading model
 #dirToConsider='a16merge' # for loading model
-#dirToConsider='j' # for loading model
-dirToConsider='reference/b8loss' # for loading model
-#dirToConsider='i' # for loading model
+dirToConsider='j' # for loading model
+#dirToConsider='reference/b8loss' # for loading model
+#dirToConsider='reference/b8loss_redo' # for loading model
 
 
 mergeDir=False
-withScore=True# score for submission
+withScore=False# score for submission
 withTrain=False # actual training
-onePred=False
+onePred=True
 lookForLearningRate=False # actual training
 
 
 withPlot= False# plot images during training
 withPlot32= False# plot images and calculates min roi
-withReport=True # calculate f score
+withReport=False # calculate f score
 withEval=False # evaluates as for scoring on validation data
 calparam=False #calculate minroi
 
@@ -137,7 +137,7 @@ minRoiForScore=0
 prob_thresholds=[0.1,0.2,0.3,0.4,0.5,0.6,0.7]
 #prob_thresholds=[0.1,0.5, ]
 
-#prob_thresholds=[0.5]
+prob_thresholds=[0.5]
 
 factorLR=0.5 # decay LR for each turn
 minLR=1e-4 # min LR
@@ -1793,19 +1793,51 @@ def onePredf():
 #    train_filenames,valid_filenames=getfilenames()
 
     vf=['1.2.276.0.7230010.3.1.4.8323329.5577.1517875188.867087.dcm','1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
-#    vf=['1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
+    vf=['1.2.276.0.7230010.3.1.4.8323329.10012.1517875220.965942.dcm']
 #    vf=['CR000000.dcm']
 
-
+    n=0
     for filename in vf:
+        n+=1
 
         print (filename)
         imageDest=os.path.join('../input/refDicom',filename)
-    
+        imageMaskFile=os.path.join('../input/refDicom','pneumothorax.png')
+        
+        imageMask = cv2.imread(imageMaskFile)
+        print (imageMask.shape)
+        img_hsv=cv2.cvtColor(imageMask, cv2.COLOR_BGR2HSV)
+
+        # lower mask (0-10)
+        lower_red = np.array([0,50,50])
+        upper_red = np.array([10,255,255])
+        mask0 = cv2.inRange(img_hsv, lower_red, upper_red)
+        
+        # upper mask (170-180)
+        lower_red = np.array([170,50,50])
+        upper_red = np.array([180,255,255])
+        mask1 = cv2.inRange(img_hsv, lower_red, upper_red)
+        
+        # join my masks
+        mask = mask0+mask1
+        
+        # set my output img to zero everywhere except my mask
+        output_img = imageMask.copy()
+        output_img[np.where(mask==0)] = 0
+ 
+        
         imgt,correct,MIN_BOUND,MAX_BOUND,imgShape=geneTable(imageDest,img_rows,img_cols,dirWriteBmp='',
                                                 writeBmp=False,resize=True,histAdapt=histAdapt)
-        print(MIN_BOUND,MAX_BOUND)
+#        imgt = pydicom.read_file(imageDest).pixel_array
+##        img = resize(imgt,(img_rows,img_cols))
+#        img=cv2.resize(imgt,(img_rows,img_cols))
+
+#        print(MIN_BOUND,MAX_BOUND)
         print('imgt min max',imgt.shape,imgt.min(),imgt.max())
+#        imgM=img.max()
+#        imgm=img.min()
+#        img=img/(imgM-imgm)-0.5
+#        print('imgg new min max',img.shape,img.min(),img.max())
 
         img=normAdapt(imgt,MIN_BOUND,MAX_BOUND,zerocenter)
 
@@ -1814,6 +1846,13 @@ def onePredf():
         if num_bit==3:
             img = np.repeat(img,3,-1)
         print(img.shape,img.min(),img.max())
+        output_img=cv2.resize(output_img,(img.shape[1],img.shape[2]))
+        imageMask=cv2.resize(imageMask,(img.shape[1],img.shape[2]))
+        mkaddorig=cv2.addWeighted(imageMask,0.5,output_img,0.5,0)
+#        plt.imshow(output_img)
+#        plt.show()
+#        ooo
+
 
         if mergeDir:
             predswip={}
@@ -1829,7 +1868,12 @@ def onePredf():
         else:
                 pred = model.predict(img,verbose=1)
 #        print('pred before reshape',pred.min(),pred.max())
-        pred=pred[0].reshape(img_rows,img_cols)
+#        pred=pred[0].reshape(img_rows,img_cols)
+        pred=pred[0]
+
+        
+#        pred=cv2.resize(pred[0],(img.shape[1],img.shape[2]))
+        
 #        print('pred after reshape',pred.min(),pred.max())
 
 #        pred=np.squeeze(pred[0])
@@ -1837,6 +1881,7 @@ def onePredf():
 #        pred= cv2.resize(pred,(img_rows,img_cols),interpolation=cv2.INTER_NEAREST)  
         print('pred min max',pred.shape,pred.min(),pred.max())
 #        msk=maskfromrle(df_full,imageDest,img_rows,img_cols,rle2mask)
+        
         try:
             if type(df_full.loc[filename[:-4],'EncodedPixels']) == str:
                     msk = rle2mask(df_full.loc[filename[:-4],'EncodedPixels'], 1024, 1024)
@@ -1851,28 +1896,56 @@ def onePredf():
             msk=msk.T
         except:
             msk= np.zeros((img_rows, img_cols),np.uint8)
+#        imgray = cv2.cvtColor(msk,cv2.COLOR_BGR2GRAY)
+        ret, thresh = cv2.threshold(msk, 127, 255, 0)
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) 
+#        msk = np.expand_dims(msk, -1)
+#        msk = np.repeat(msk,3,-1)
+        msk=np.zeros((img_rows,img_cols,3),np.uint8)
+        cv2.drawContours(msk, contours, -1, (0, 0, 255), 3)
+        
+#        cv2.imshow('img', im)
+        
+        
 
 #        plt.imshow(normi(imgt),cmap = 'gray')
 #        plt.show()
 #        plt.imshow(normi(msk))
 #        plt.show()
 #        imgt=cv2.resize(img,(img_rows,img_cols))
-        mkadd=cv2.addWeighted(normi(imgt),0.5,normi(msk),0.5,0)
-        plt.imshow(normi(mkadd))
-        plt.show()
+#        mkadd=cv2.addWeighted(normi(img),0.5,normi(msk),0.5,0)
+#        plt.imshow(normi(mkadd))
+#        plt.show()
+        if num_bit==3:
+             imgt = np.expand_dims(imgt, -1)
+             imgt = np.repeat(imgt,3,-1)
         for thresh in prob_thresholds:
             print(thresh)
             pred_to_aff = pred.copy()
             np.putmask(pred_to_aff,pred <= thresh,0)
-            np.putmask(pred_to_aff,pred > thresh,1)
+            np.putmask(pred_to_aff,pred > thresh,255)
+            _, maskd = cv2.threshold(pred_to_aff, 200, 255, cv2.THRESH_BINARY)
+            kernel1 = np.ones((3,3), np.uint8)
+            erode = cv2.erode(maskd, kernel1, iterations=2)
+            _, pred_to_aff = cv2.threshold(erode, 200, 255, cv2.THRESH_BINARY)
+
+          
+            pred_to_aff = np.expand_dims(pred_to_aff, -1)
+            pred_to_aff = np.repeat(pred_to_aff,3,-1)
 #            print(pred_to_aff.min(),pred_to_aff.max())
-    
-            mkadd1=cv2.addWeighted(normi(imgt),0.2,normi(pred_to_aff),0.8,0)
-            mkadd2=cv2.addWeighted(mkadd1,0.8,normi(msk),0.2,0)
-
-
-            plt.imshow(mkadd2)
+            np.putmask(pred_to_aff,pred_to_aff>128,(255,0,0))
+            plt.imshow(pred_to_aff)
             plt.show()
+            print('imgt: ',imgt.shape,' pred :',pred_to_aff.shape)
+            print('msk :' ,msk.shape)
+    
+#            mkadd1=cv2.addWeighted(normi(mkaddorig),0.5,normi(pred_to_aff),0.5,0)
+            mkadd1=cv2.addWeighted(normi(msk),0.5,normi(pred_to_aff),0.5,0)
+
+            plt.imshow(mkadd1)
+            plt.show()
+#            mkadd2=cv2.addWeighted(mkadd1,0.5,output_img,0.5,0)
+            cv2.imwrite('a'+str(n)+'.bmp',mkadd1)
 #            plt.hist(pred_to_aff, bins=100)
 ##        axs[1].hist(pred, bins=n_bins)
 #            plt.show
